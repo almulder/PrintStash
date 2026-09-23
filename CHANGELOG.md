@@ -45,6 +45,9 @@
 
 ### Fixed
 
+- Provider connection errors now distinguish missing MyMiniFactory OAuth setup,
+  rejected Cults credentials, provider outages, and invalid provider responses.
+
 - AI Search mutations enforce token write scope, including caption edits, settings,
   generation management, local model operations and personal preferences.
 
