@@ -56,9 +56,12 @@ export function SimilarityRow({ candidate }: { candidate: SimilarityCandidate })
   const { t } = useI18n();
   return (
     <li className="px-4 py-4 sm:px-5">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
+      <div className="grid gap-3 @lg/similarity:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @lg/similarity:items-center">
         <ModelLabel model={candidate.model_a} />
-        <ArrowLeftRight className="hidden h-4 w-4 text-muted-foreground sm:block" aria-hidden />
+        <ArrowLeftRight
+          className="hidden h-4 w-4 text-muted-foreground @lg/similarity:block"
+          aria-hidden
+        />
         <ModelLabel model={candidate.model_b} />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
