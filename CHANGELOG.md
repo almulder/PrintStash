@@ -48,6 +48,9 @@
 
 ### Fixed
 
+- Routine HTTP client requests no longer fill INFO logs during PrusaLink polling;
+  printer errors and transport warnings remain visible.
+
 - AI Search mutations enforce token write scope, including caption edits, settings,
   generation management, local model operations and personal preferences.
 
