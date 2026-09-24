@@ -386,8 +386,8 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           elif git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- \
             .github/workflows/ci.yml \
-            docker-compose.yml \
-            docker-compose.migrate-minio.yml \
+            docker-compose.advanced.yml \
+            deploy/minio-migration/compose.yml \
             scripts/migrate_minio_to_seaweedfs.sh \
             scripts/rclone_minio_to_seaweedfs.sh \
             scripts/test_minio_migration.sh; then

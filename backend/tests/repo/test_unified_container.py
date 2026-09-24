@@ -140,7 +140,7 @@ def compose_config():
                 "docker",
                 "compose",
                 "-f",
-                str(REPO_ROOT / "docker-compose.unified.yml"),
+                str(REPO_ROOT / "docker-compose.yml"),
                 "--env-file",
                 "/dev/null",
                 "config",
