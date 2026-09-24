@@ -105,6 +105,7 @@ Add the published image as a custom container with these settings:
 | Setting | Value |
 | --- | --- |
 | Image | `ghcr.io/xiao-villamor/printstash:latest` (or your fork's namespace) |
+| Icon URL | `https://raw.githubusercontent.com/xiao-villamor/PrintStash/main/frontend/public/logo.png` |
 | Network | Bridge |
 | Web port | Host port of your choice → container TCP port `3000` |
 | Persistent folder | A dedicated host folder → `/data` (read/write) |
@@ -123,6 +124,7 @@ Open `http://<server-ip>:<host-port>` on a trusted network and complete the init
 administrator registration. The frontend proxies the API internally, so only
 port `3000` needs publishing. These are custom-container settings; this change
 does not publish an Unraid Community Apps or CasaOS app-store listing.
+The same PNG is available from your running frontend at `/logo.png`.
 
 ## Add an optional setting
 
