@@ -4,6 +4,8 @@
 
 ### Added
 
+- DXF files can be imported as source Artifacts, downloaded with their original
+  bytes, and included in backups. Drawing previews are not yet available.
 - Managed source Artifacts can be moved to trash and restored individually from
   Model detail. The Model, sibling Artifacts, Revisions and print history remain.
   Linked Library-source originals stay protected.
