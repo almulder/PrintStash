@@ -15,6 +15,10 @@ image. See UPGRADE.md before pulling.**
   build-from-source variants are folded into the advanced file; maintainer
   stacks moved under `deploy/`.
 
+- CI no longer runs the eight per-image Docker build and Grype jobs or the
+  legacy MinIO-to-SeaweedFS migration job. Container publishing no longer runs
+  Grype scans; release builds and the legacy migration helper remain available.
+
 ### Added
 
 - DXF files can be imported as source Artifacts, downloaded with their original

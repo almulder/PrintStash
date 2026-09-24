@@ -1,7 +1,7 @@
 """The single-container deployment preserves state and supervises both services.
 
 A dead API must not leave the SPA running indefinitely. Exercise the real shell
-supervisor with stand-in executables; native CI also boots the final image.
+supervisor with stand-in executables; the release build also boots the final image.
 """
 
 from __future__ import annotations

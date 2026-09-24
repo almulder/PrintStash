@@ -49,33 +49,10 @@ PRINTSTASH_IMAGE=printstash PRINTSTASH_VERSION=local docker compose up -d
 The existing **GHCR Release Images** workflow publishes native AMD64 and ARM64
 images on release tags after CI passes. Run **Manual Docker Images** on the
 default branch to publish `latest`. Both use the repository owner's GHCR namespace
-and the built-in `GITHUB_TOKEN`; a separate registry password is unnecessary. Each architecture
-runs the container tests before its digest is promoted to shared release tags.
-Pull-request CI builds and tests without publishing.
-
-### Container vulnerability reports
-
-Grype scans every AMD64 and ARM64 image during pull-request and main-branch CI.
-Publishing scans the immutable per-architecture digest before that digest can be
-promoted into a multi-platform tag. A scanner, registry or vulnerability-database
-failure stops the job; vulnerability matches remain report-only so an unfixed
-upstream package does not silently make releases impossible.
-
-Open the workflow run's **Artifacts** section and download the artifact named
-`grype-ci-<image>-<architecture>` or
-`grype-publish-<image>-<architecture>`. Each bundle is retained for 90 days and
-contains:
-
-- `summary.md` — severity totals and the number of matches with a known fix;
-- `report.txt` — the complete human-readable Grype table;
-- `report.json` — structured findings for automation and deeper triage;
-- `report.sarif` — the report submitted to **Security → Code scanning** on
-  trusted runs when code scanning is enabled for the repository. An unavailable
-  Security-tab integration does not discard or block the downloadable reports.
-
-Reports are snapshots against the vulnerability database available when the
-workflow ran. Re-run CI when you need a current assessment of an unchanged
-image.
+and the built-in `GITHUB_TOKEN`; a separate registry password is unnecessary.
+Pull-request CI validates the application without building container images.
+The release workflow builds both architectures and runs the unified-image smoke
+test before promoting their digests to shared tags.
 
 On a fork, enable Actions before running the manual workflow. After the first
 publish, open the `printstash` package's settings and change visibility to
