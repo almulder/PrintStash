@@ -42,7 +42,7 @@ test.describe("uploads", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Upload", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Upload model" });
-    await dialog.locator('input[accept=".stl,.3mf,.obj,.step,.stp"]').setInputFiles(file);
+    await dialog.locator('input[accept=".stl,.3mf,.obj,.step,.stp,.dxf"]').setInputFiles(file);
     await page.getByPlaceholder("e.g. Bracket v2").fill(name);
     await page.getByRole("button", { name: /upload to vault/i }).click();
     await expect(dialog).toHaveCount(0);
@@ -188,15 +188,17 @@ test.describe("uploads", () => {
     await page.getByRole("button", { name: "Upload", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Upload model" });
     await dialog.getByRole("button", { name: "Bulk", exact: true }).click();
-    await dialog.locator('input[type="file"][accept=".stl,.3mf,.obj,.step,.stp"]').setInputFiles(
-      names.map((name, index) => ({
-        name: `${name}.stl`,
-        mimeType: "model/stl",
-        buffer: Buffer.from(
-          `solid ${name}\nfacet normal 0 0 1\nouter loop\nvertex 0 0 ${index}\nvertex 1 0 ${index}\nvertex 0 1 ${index}\nendloop\nendfacet\nendsolid ${name}\n`,
-        ),
-      })),
-    );
+    await dialog
+      .locator('input[type="file"][accept=".stl,.3mf,.obj,.step,.stp,.dxf"]')
+      .setInputFiles(
+        names.map((name, index) => ({
+          name: `${name}.stl`,
+          mimeType: "model/stl",
+          buffer: Buffer.from(
+            `solid ${name}\nfacet normal 0 0 1\nouter loop\nvertex 0 0 ${index}\nvertex 1 0 ${index}\nvertex 0 1 ${index}\nendloop\nendfacet\nendsolid ${name}\n`,
+          ),
+        })),
+      );
     await dialog.getByRole("button", { name: "None" }).click();
     await dialog.getByRole("option", { name: new RegExp(collection) }).click();
     await dialog.getByRole("button", { name: "Upload 3 models" }).click();
