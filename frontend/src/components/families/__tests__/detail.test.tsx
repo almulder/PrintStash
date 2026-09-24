@@ -11,6 +11,21 @@ import { json, renderApp } from "@/test-support/render";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Family detail", () => {
+  it("explains what this Family groups", async () => {
+    renderApp(<FamilyDetail id={7} />, {
+      routes: {
+        "GET /api/v1/families/7/members": json({ items: [], total: 0, next_cursor: null }),
+        "GET /api/v1/families/7": json(aFamily()),
+        "GET /api/v1/models/1": json(aModel()),
+        "GET /api/v1/tags": json([]),
+      },
+    });
+    expect(
+      await screen.findByText(
+        "A Family keeps versions of one design together. Each Model still has its own files and print history.",
+      ),
+    ).toBeVisible();
+  });
   it("compares refreshed member metadata after a canonical change", async () => {
     const user = userEvent.setup();
     let updated = false;
@@ -49,11 +64,11 @@ describe("Family detail", () => {
     });
     await user.click(screen.getByRole("button", { name: "Compare two Models (2/2)" }));
     const table = screen.getByRole("table");
-    expect(within(table).getByRole("row", { name: "Variation Rescaled Canonical" })).toBeVisible();
+    expect(within(table).getByRole("row", { name: "Variation Rescaled Main Model" })).toBeVisible();
     expect(within(table).getByRole("row", { name: "Scale 2 1" })).toBeVisible();
     // The instrumented refetch + dialog scenario measures about 4.5s by itself;
     // allow the same scenario to complete when full-suite workers share the CPU.
-  }, 10_000);
+  }, 30_000);
   it("shows member metadata without combining Revisions", async () => {
     const member = aFamilyMember({
       gcode_revision_count: 4,
@@ -72,6 +87,8 @@ describe("Family detail", () => {
       },
     });
     const card = await screen.findByRole("article", { name: "Benchy" });
+    expect(within(card).getByText("File and print details")).toBeVisible();
+    await userEvent.setup().click(within(card).getByText("File and print details"));
     expect(within(card).getByText("STL / GCODE", { exact: false })).toBeVisible();
     expect(within(card).getByText("G-code Revisions").nextElementSibling).toHaveTextContent("4");
     expect(within(card).getByText("Known-good Revisions").nextElementSibling).toHaveTextContent(
@@ -92,11 +109,11 @@ describe("Family detail", () => {
         "GET /api/v1/tags": json([]),
       },
     });
-    const label = locale === "en" ? "Print canonical Model" : "Imprimir Modelo canónico";
+    const label = locale === "en" ? "Print main Model" : "Imprimir Modelo principal";
     expect(await screen.findByRole("button", { name: label })).toBeDisabled();
     expect(
       screen.getByText(
-        locale === "en" ? "Canonical Model unavailable" : "Modelo canónico no disponible",
+        locale === "en" ? "No main Model selected" : "No hay Modelo principal seleccionado",
       ),
     ).toBeVisible();
     expect(
@@ -158,7 +175,8 @@ describe("Family detail", () => {
         "GET /api/v1/tags": json([]),
       },
     });
-    await user.selectOptions(await screen.findByLabelText("Variation"), "rescaled");
+    await user.click(await screen.findByText("Filter and sort"));
+    await user.selectOptions(screen.getByLabelText("Variation"), "rescaled");
     await user.click(screen.getByText("More filters"));
     await user.selectOptions(screen.getByLabelText("Formats"), "3mf");
     await user.selectOptions(screen.getByLabelText("Known-good Revisions"), "true");
@@ -211,7 +229,7 @@ describe("Family detail", () => {
       },
     });
     expect(await screen.findByText(/Editing requires edit access/)).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Add member" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add variation" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Actions for Benchy" })).not.toBeInTheDocument();
   });
 });
