@@ -57,6 +57,11 @@ export interface FileRead {
   tags: string[];
 }
 
+export interface TrashedSourceFileRead {
+  id: number;
+  original_filename: string;
+}
+
 export interface FileRevisionUpdate {
   revision_label?: string | null;
   revision_status?: FileRevisionStatus | null;
@@ -86,6 +91,7 @@ export interface ModelRead {
   created_at: string;
   updated_at: string;
   files: FileRead[];
+  trashed_source_files?: TrashedSourceFileRead[];
   starred: boolean;
 }
 

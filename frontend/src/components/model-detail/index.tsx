@@ -980,6 +980,7 @@ export function ModelDetail({ model: initialModel }: { model: ModelRead }) {
                 <FilesTab
                   modelId={model.id}
                   sourceFiles={sourceFiles}
+                  trashedSourceFiles={model.trashed_source_files ?? []}
                   canEdit={canEditModel}
                   onModel={setModel}
                 />
