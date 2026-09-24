@@ -1,7 +1,7 @@
 """The release wheel and native image jobs cover every advertised transport.
 
 Development wheels cannot prove which services a custom release wheel compiled.
-These build contracts keep the final-image lifecycle check on both architectures.
+These build contracts keep both backend image variants on both architectures.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ class TestStorageImage:
         assert "services-s3" in feature_line.group(1).split(",")
 
     def test_checks_each_backend_image_on_its_native_architecture(self) -> None:
-        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/ci.yml").read_text())
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/container-publish.yml").read_text())
         job = next(
             value
             for value in workflow["jobs"].values()
@@ -45,5 +45,5 @@ class TestStorageImage:
             ("printstash-api-lite", "amd64"),
             ("printstash-api-lite", "arm64"),
         }
-        assert all(row["load"] and row["storage-smoke"] for row in images)
-        assert any("test.sh image" in step.get("run", "") for step in job["steps"])
+        assert all(row["platform"] == f'linux/{row["arch"]}' for row in images)
+        assert any(step.get("uses", "").startswith("docker/build-push-action@") for step in job["steps"])

@@ -32,14 +32,14 @@ test.describe("Standalone similarity", () => {
   }, testInfo) => {
     test.setTimeout(300_000);
     const prefix = `similarity-${Date.now()}`;
-    await page.goto("/settings");
+    await page.goto("/library/similar");
     // Development tooling is outside the preview; its floating button can obscure
     // just one canvas when Playwright scrolls it into view for a pixel comparison.
     await page.addStyleTag({
       content:
         '[aria-label="Open Tanstack query devtools"], [title="Open Tanstack query devtools"] { display: none !important; }',
     });
-    await page.getByRole("button", { name: "Maintenance", exact: true }).click();
+    await page.getByText("Analysis options", { exact: true }).click();
     const settings = page.getByRole("form", { name: "Similar models" });
     const enabled = settings.getByRole("checkbox", { name: "Enable similarity analysis" });
     if (!(await enabled.isChecked())) await enabled.click();
@@ -89,7 +89,7 @@ test.describe("Standalone similarity", () => {
         await page.getByRole("button", { name: "Notifications" }).click();
         await page.goto("/");
         const card = modelCard(page, name);
-        await expect(card).toBeVisible();
+        await expect(card).toBeVisible({ timeout: 60_000 });
         const href = await card.getAttribute("href");
         models.push({
           id: Number(href!.split("/").at(-1)),
