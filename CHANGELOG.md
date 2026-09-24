@@ -7,6 +7,8 @@
 - Managed source Artifacts can be moved to trash and restored individually from
   Model detail. The Model, sibling Artifacts, Revisions and print history remain.
   Linked Library-source originals stay protected.
+- A PNG version of the PrintStash icon for Unraid and other container dashboards
+  that cannot use SVG icons.
 
 - AI Search adds transactional text indexing for Models, Collections, Multipart
   Models and Documents, authorized lexical suggestions, hybrid results with match
@@ -48,6 +50,9 @@
   separate from verified geometry, and analysis never downloads model weights.
 
 ### Fixed
+
+- Routine HTTP client requests no longer fill INFO logs during PrusaLink polling;
+  printer errors and transport warnings remain visible.
 
 - AI Search mutations enforce token write scope, including caption edits, settings,
   generation management, local model operations and personal preferences.

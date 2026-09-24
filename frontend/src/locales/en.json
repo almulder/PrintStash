@@ -2566,6 +2566,8 @@
   "You must sign in to perform this action.": "You must sign in to perform this action.",
   "Your session has expired. Please sign in again.": "Your session has expired. Please sign in again.",
   "This model no longer exists.": "This model no longer exists.",
+  "This item was not deleted because storage ownership could not be verified. Check Storage health before retrying.": "This item was not deleted because storage ownership could not be verified. Check Storage health before retrying.",
+  "Permanent deletion needs storage-risk confirmation. Refresh this page and review the confirmation before retrying.": "Permanent deletion needs storage-risk confirmation. Refresh this page and review the confirmation before retrying.",
   "This printer no longer exists.": "This printer no longer exists.",
   "The printer is offline.": "The printer is offline.",
   "Your role does not allow this printer action.": "Your role does not allow this printer action.",

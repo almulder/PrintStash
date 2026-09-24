@@ -2566,6 +2566,8 @@
   "You must sign in to perform this action.": "Debes iniciar sesión para realizar esta acción.",
   "Your session has expired. Please sign in again.": "Tu sesión ha caducado. Vuelve a iniciar sesión.",
   "This model no longer exists.": "Este modelo ya no existe.",
+  "This item was not deleted because storage ownership could not be verified. Check Storage health before retrying.": "Este elemento no se eliminó porque no se pudo verificar que PrintStash sea propietario de los datos almacenados. Comprueba el estado del almacenamiento antes de reintentarlo.",
+  "Permanent deletion needs storage-risk confirmation. Refresh this page and review the confirmation before retrying.": "La eliminación permanente requiere confirmar el riesgo del almacenamiento. Actualiza esta página y revisa la confirmación antes de reintentarlo.",
   "This printer no longer exists.": "Esta impresora ya no existe.",
   "The printer is offline.": "La impresora está desconectada.",
   "Your role does not allow this printer action.": "Tu rol no permite realizar esta acción en la impresora.",
