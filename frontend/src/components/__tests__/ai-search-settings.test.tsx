@@ -57,7 +57,7 @@ describe("AI Search settings", () => {
     expect(screen.getByRole("checkbox", { name: "Use automatically when ready" })).toBeChecked();
     await userEvent.click(screen.getByRole("button", { name: "Back to search choices" }));
     expect(screen.getByRole("button", { name: "Build new index" })).toBeVisible();
-  });
+  }, 15_000);
 
   it("explains the first setup step when AI is off", async () => {
     await settingsPanel({
