@@ -100,7 +100,7 @@ as private even for public repositories; see
 
 ### Unraid, CasaOS and other container dashboards
 
-For Unraid, use the [single-container template](../templates/printstash-api.xml)
+For Unraid, use the [single-container template](../templates/printstash.xml)
 and its [installation and migration guide](../unraid/README.md). On other
 container dashboards, add the published image as a custom container with these
 settings:

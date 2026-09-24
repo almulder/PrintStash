@@ -53,6 +53,9 @@
 
 ### Fixed
 
+- The Unraid Community Applications catalog has one current PrintStash listing;
+  the old API and frontend templates are marked deprecated for existing users.
+
 - The Unraid template uses the unified image with one persistent appdata mount,
   a working first-run setup default, and Unraid file-owner defaults.
 
