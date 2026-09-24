@@ -51,6 +51,8 @@
 
 ### Fixed
 
+- Browser captures accept multi-file selections within the review limit, release
+  unfinished upload slots after transfer failures, and explain capacity errors.
 - Provider connection errors now distinguish missing MyMiniFactory OAuth setup,
   rejected Cults credentials, provider outages, and invalid provider responses.
 - Routine HTTP client requests no longer fill INFO logs during PrusaLink polling;
