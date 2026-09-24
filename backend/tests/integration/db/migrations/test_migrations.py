@@ -615,6 +615,17 @@ class TestRunMigrations:
         assert _current(url) == _head_revision()
         assert {"users", "models", "files", "alembic_version"} <= _table_names(url)
 
+    def test_runner_creates_the_database_directory_of_a_fresh_data_root(
+        self, tmp_path: Path
+    ) -> None:
+        # The default SQLite file is <VAULT_DATA_ROOT>/db/printstash.sqlite, and
+        # a fresh root has no db/ until something makes it.
+        url = f"sqlite:///{tmp_path / 'data' / 'db' / 'printstash.sqlite'}"
+
+        migrate_mod.run_migrations(url)
+
+        assert _current(url) == _head_revision()
+
     def test_runner_is_idempotent_noop_at_head(self, tmp_path: Path) -> None:
         url = _url(tmp_path)
         migrate_mod.run_migrations(url)
@@ -1038,6 +1049,19 @@ class TestInitDb:
 
 
 class TestUpgrade:
+    def test_alembic_upgrade_creates_the_database_directory_of_a_fresh_data_root(
+        self, tmp_path: Path
+    ) -> None:
+        # `alembic upgrade head` (dev_start.sh, the Playwright launchers) runs
+        # before the app has created <VAULT_DATA_ROOT>/db.
+        db_path = tmp_path / "data" / "db" / "printstash.sqlite"
+        cfg = Config(str(ALEMBIC_INI))
+        cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+
+        command.upgrade(cfg, "head")
+
+        assert db_path.is_file()
+
     def test_alembic_upgrade_creates_expected_schema(
         self, tmp_path: Path, monkeypatch
     ) -> None:

@@ -7,7 +7,7 @@ from sqlalchemy import Connection, engine_from_config, pool
 from sqlmodel import SQLModel
 
 from alembic import context
-from app.core.config import settings
+from app.core.config import ensure_database_parent, settings
 from app.db import models  # noqa: F401
 from app.db.derived_objects import managed_names
 from app.db.migration_guards import (
@@ -22,6 +22,9 @@ config = context.config
 default_url = "sqlite:///./dev.sqlite"
 if config.get_main_option("sqlalchemy.url") == default_url:
     config.set_main_option("sqlalchemy.url", normalize_database_url(settings.db_url))
+# `alembic upgrade head` on a fresh VAULT_DATA_ROOT runs before the app has
+# created <root>/db for the default SQLite file.
+ensure_database_parent(str(config.get_main_option("sqlalchemy.url")))
 
 if config.config_file_name is not None:
     # disable_existing_loggers defaults to True, which would set .disabled on

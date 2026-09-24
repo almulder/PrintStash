@@ -28,7 +28,7 @@ from sqlalchemy import CheckConstraint, UniqueConstraint, create_engine, inspect
 from sqlmodel import SQLModel
 
 from alembic import command
-from app.core.config import settings
+from app.core.config import ensure_database_parent, settings
 from app.core.logging import get_logger
 from app.db.url import normalize_database_url
 
@@ -268,6 +268,7 @@ def run_migrations(database_url: str | None = None) -> None:
       equivalent, head-stamped schema on every supported engine.
     """
     url = normalize_database_url(database_url or settings.db_url)
+    ensure_database_parent(url)
 
     engine = create_engine(url)
     try:
