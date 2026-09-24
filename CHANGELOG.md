@@ -53,6 +53,9 @@
 
 ### Fixed
 
+- Double-clicking a collection in the library sidebar keeps that collection open
+  instead of returning to All Models.
+
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
 
