@@ -611,7 +611,6 @@ export function FilterSidebarContent({
   canViewPrinters = true,
   structuredFilters,
   filtersOpen = true,
-  familyFilters,
   libraryView,
   onLibraryViewChange,
 }: FilterSidebarProps) {
@@ -992,7 +991,6 @@ export function FilterSidebarContent({
 
           {filtersOpen && (
             <div className="space-y-6" aria-label={uiText("Filters")} role="region">
-              {familyFilters}
               {/* Printer */}
               {canViewPrinters && (
                 <section>
@@ -1216,7 +1214,6 @@ export interface FilterSidebarProps {
   outlinerFilter?: string;
   structuredFilters?: React.ReactNode;
   filtersOpen?: boolean;
-  familyFilters?: React.ReactNode;
   libraryView: LibraryViewMode;
   onLibraryViewChange: (view: LibraryViewMode) => void;
 }

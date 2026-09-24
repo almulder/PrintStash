@@ -1,4 +1,3 @@
-import type { FamilyBrowseMode, ModelFamilySummary, VariantRole } from "./families";
 import type {
   PrintJobIdentityRead,
   PrintJobReportedMetadataRead,
@@ -75,7 +74,6 @@ export interface ModelSimilarityRead {
 }
 
 export interface ModelRead {
-  family?: ModelFamilySummary | null;
   similarity?: ModelSimilarityRead;
   id: number;
   name: string;
@@ -169,7 +167,6 @@ export interface PrintSummaryRead {
 }
 
 export interface ModelListItem {
-  family?: ModelFamilySummary | null;
   similarity?: ModelSimilarityRead;
   id: number;
   name: string;
@@ -578,10 +575,6 @@ export interface ShareLinkCreate {
 }
 
 export interface ListModelsParams {
-  family_id?: number;
-  family_role?: VariantRole;
-  in_family?: boolean;
-  browse?: FamilyBrowseMode;
   collection?: string;
   direct?: boolean;
   tag?: string[];
@@ -640,10 +633,6 @@ export interface ListModelPageParams extends Omit<ListModelsParams, "offset"> {
 
 export interface SavedViewFilters {
   sort?: ModelSort | null;
-  family_id?: number | null;
-  family_role?: VariantRole | null;
-  in_family?: boolean | null;
-  browse?: FamilyBrowseMode;
   collection?: string | null;
   direct: boolean;
   tag: string[];

@@ -8,6 +8,11 @@ image. See UPGRADE.md before pulling.**
 
 ### Changed
 
+- Model Families have been removed. Existing Models, files, G-code revisions and
+  print history remain independent; existing Family relationships and covers
+  are retired when the database migration runs. Multipart Models continue to
+  support named parts and alternative Models.
+
 - Nine Compose files became two in the repository root: `docker-compose.yml`
   starts PrintStash as one container (web UI and full API) with no
   configuration, and `docker-compose.advanced.yml` wires every setting with its
@@ -51,15 +56,6 @@ image. See UPGRADE.md before pulling.**
 - PostgreSQL supports the existing backup API through verified portable snapshots.
   A dry-run-first SQLite-to-PostgreSQL command preserves encrypted fields, IDs,
   cyclic library references and native vector bytes without re-embedding.
-- Model Families preserve independent Models and Revisions while recording human
-  variant roles, an explicit canonical selection and relative measurements.
-  Membership moves and Family restoration are atomic; Model trash reserves its
-  membership, and purging a Model explicitly clears its Family references.
-  Portable v2 preserves Families and their covers, with idempotent reimport,
-  explicit membership conflicts, and a v1 export option for older installations.
-  The library adds collapsed Family browsing, Saved Views, paginated member
-  selection, shared-scale comparison and explicit Multipart Choice drafts.
-  Manual Family workflows also work without similarity or inference packages.
 - **Similar Models** offers opt-in local geometry analysis, resumable library scans,
   a filtered review queue and synchronized comparisons at shared physical scale.
   Evidence confirmation keeps each Model, Artifact and Revision separate; verified
@@ -93,10 +89,7 @@ image. See UPGRADE.md before pulling.**
   explanations.
 - Model detail tabs fit their panel without horizontal scrolling. Similar Models
   keep readable names and reachable comparison actions in narrow panels.
-- Family pages explain that a Family groups versions of one design, show the main
-  Model in context, and place technical details and filters behind optional controls.
-  The library exposes multipart creation as a separate action on desktop and mobile.
-  Active Family filters remain discoverable when opening a saved or shared view.
+- The library exposes multipart creation as a separate action on desktop and mobile.
 
 - AI search recovers bounded name misspellings, finds functional holder metadata,
   and rejects weak short-query matches before combining retrieval signals.
@@ -118,16 +111,13 @@ image. See UPGRADE.md before pulling.**
 - Search backfill drains bounded batches between periodic pauses, removing the
   one-second delay per embedding batch while preserving maintenance and shutdown
   coordination. Settled active generations stop a burst without inference.
-- Family browsing uses recent changes when relevance scores are unavailable,
-  preserving valid cursors for collapsed cards and the Families list.
-
 - Restoring AI Search backups no longer requires optional vector extensions to
   inspect unversioned databases. Durable vectors remain searchable through the
   portable backend while native acceleration is disabled.
 
 - AI Search activation acquires the SQLite writer lock before verification, so
   concurrent worker commits cannot invalidate the cutover snapshot. Search and
-  ordinary Model results start without the optional Families annotation package.
+  ordinary Model results start without optional search annotations.
 
 - Caption text and unsaved edits now clear when the signed-in account changes,
   including account changes received from another browser tab.
