@@ -4,7 +4,7 @@ Run these checks before tagging a release. For the full hands-on browser sweep
 of every UI workflow, see [`manual-testing.md`](./manual-testing.md).
 
 For a reproducible environment built from the current checkout, use
-[`docker-compose.manual-test.yml`](../docker-compose.manual-test.yml). It runs
+[`deploy/manual-testing/compose.yml`](../deploy/manual-testing/compose.yml). It runs
 PrintStash on PostgreSQL and S3-compatible storage alongside Spoolman, with
 optional Authentik OIDC and printer-emulator profiles. Set
 `VAULT_OIDC_ENABLED=false` whenever the identity profile is omitted. Setup,

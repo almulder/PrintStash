@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+**Running from a git checkout? The old `docker-compose.yml` is now
+`docker-compose.advanced.yml`; `docker-compose.yml` now runs the single-container
+image. See UPGRADE.md before pulling.**
+
+### Changed
+
+- Nine Compose files became two in the repository root: `docker-compose.yml`
+  starts PrintStash as one container (web UI and full API) with no
+  configuration, and `docker-compose.advanced.yml` wires every setting with its
+  default, plus optional PostgreSQL and S3. The light, production and
+  build-from-source variants are folded into the advanced file; maintainer
+  stacks moved under `deploy/`.
+
 ### Added
 
 - DXF files can be imported as source Artifacts, downloaded with their original
