@@ -75,8 +75,16 @@ export function parseApiError(cause: unknown): ApiError {
 
   try {
     const parsed = JSON.parse(body);
-    // oxlint-disable-next-line anti-slop/no-runtime-typeof -- FastAPI puts a string code in `detail` for coded errors but a list of field objects for 422 validation errors; only the string form is a detail code, and this line is where that body gets decoded.
-    const code = typeof parsed?.detail === "string" ? parsed.detail : String(status);
+    // FastAPI also returns a structured code for guarded storage operations.
+    // Keep 422 validation lists distinct from those coded conflict objects.
+    /* oxlint-disable anti-slop/no-runtime-typeof -- HTTP JSON is untyped at this boundary. */
+    const code =
+      typeof parsed?.detail === "string"
+        ? parsed.detail
+        : parsed?.detail && !Array.isArray(parsed.detail) && typeof parsed.detail.code === "string"
+          ? parsed.detail.code
+          : String(status);
+    /* oxlint-enable anti-slop/no-runtime-typeof */
     return new ApiError(status, code, body);
   } catch {
     return new ApiError(status, String(status), body);
@@ -94,6 +102,10 @@ const ERROR_MESSAGES = {
   invalid_or_expired_token: "Your session has expired. Please sign in again.",
   // Models
   model_not_found: "This model no longer exists.",
+  storage_ownership_unverified:
+    "This item was not deleted because storage ownership could not be verified. Check Storage health before retrying.",
+  storage_risk_confirmation_required:
+    "Permanent deletion needs storage-risk confirmation. Refresh this page and review the confirmation before retrying.",
   // Printers
   printer_not_found: "This printer no longer exists.",
   printer_offline: "The printer is offline.",
