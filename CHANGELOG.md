@@ -70,6 +70,12 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- Uploads work again when PrintStash is opened over plain HTTP on a LAN address
+  (for example `http://192.168.1.10:3000`). Browsers hide `crypto.subtle` outside
+  secure contexts, so the new resumable upload failed while hashing the file and
+  reported "Couldn't reach the server" before sending anything. The browser now
+  falls back to a JavaScript SHA-256 there.
+
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
 
