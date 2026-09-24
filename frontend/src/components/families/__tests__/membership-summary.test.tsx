@@ -65,7 +65,7 @@ describe("Family overview", () => {
     );
     expect(await screen.findByText("1 Model")).toBeVisible();
     expect(screen.queryByRole("link", { name: "Current boat" })).not.toBeInTheDocument();
-    expect(screen.getByText("Canonical", { exact: true })).toBeVisible();
+    expect(screen.getByText("Main Model", { exact: true })).toBeVisible();
   });
 
   it("keeps a larger Family overview to three other variations", async () => {
@@ -106,7 +106,7 @@ describe("Family overview", () => {
         },
       },
     );
-    expect(screen.getByText("Canonical Model unavailable")).toBeVisible();
+    expect(screen.getByText("No main Model selected")).toBeVisible();
     expect(await screen.findByText("1 Model")).toBeVisible();
     expect(requests().some(({ url }) => url.startsWith("/api/v1/models/"))).toBe(false);
   });

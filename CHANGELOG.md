@@ -93,10 +93,10 @@ image. See UPGRADE.md before pulling.**
   explanations.
 - Model detail tabs fit their panel without horizontal scrolling. Similar Models
   keep readable names and reachable comparison actions in narrow panels.
-- The library groups organization actions under “Library tools” and Family filters
-  with the other advanced filters,
-  keeping the initial toolbar focused on uploading and browsing. Active Family
-  filters remain discoverable when opening a saved or shared view.
+- Family pages explain that a Family groups versions of one design, show the main
+  Model in context, and place technical details and filters behind optional controls.
+  The library exposes multipart creation as a separate action on desktop and mobile.
+  Active Family filters remain discoverable when opening a saved or shared view.
 
 - AI search recovers bounded name misspellings, finds functional holder metadata,
   and rejects weak short-query matches before combining retrieval signals.

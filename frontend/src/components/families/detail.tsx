@@ -149,6 +149,14 @@ export function FamilyDetail({ id }: { id: number }) {
   const pair = [...selected.values()].map(
     (member) => members.find((current) => current.id === member.id) ?? member,
   );
+  const activeFilterCount =
+    [
+      filters.role,
+      filters.file_type,
+      filters.known_good,
+      filters.has_revisions,
+      filters.source,
+    ].filter((value) => value !== undefined).length + Number(filters.sort !== "order");
   return (
     <PageContainer className="space-y-5">
       <Link
@@ -180,15 +188,6 @@ export function FamilyDetail({ id }: { id: number }) {
                 className={`h-4 w-4 ${family.starred ? "fill-current text-primary" : ""}`}
                 aria-hidden
               />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={canonicalId == null || canonical.isPending || gcode.length === 0}
-              onClick={() => setSend(true)}
-            >
-              <Printer className="h-4 w-4" aria-hidden />
-              {t("families.sendCanonical")}
             </Button>
             {editable && (
               <Button size="sm" onClick={() => setDialog({ kind: "add" })}>
@@ -266,6 +265,9 @@ export function FamilyDetail({ id }: { id: number }) {
           </>
         }
       />
+      <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        {t("families.detailIntro")}
+      </p>
       <div className="flex items-start gap-3 rounded-md border border-border bg-card p-3">
         {cover && (
           <img
@@ -289,6 +291,9 @@ export function FamilyDetail({ id }: { id: number }) {
                 <p className="text-sm font-semibold">{t("families.vacancy")}</p>
                 <p className="text-xs text-muted-foreground">{t("families.vacancyHelp")}</p>
               </>
+            )}
+            {canonicalId != null && (
+              <p className="mt-1 text-xs text-muted-foreground">{t("families.mainHelp")}</p>
             )}
           </div>
           {family.description && (
@@ -316,6 +321,15 @@ export function FamilyDetail({ id }: { id: number }) {
           {canonical.isError && (
             <p className="text-xs text-destructive">{userMessage(canonical.error)}</p>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={canonicalId == null || canonical.isPending || gcode.length === 0}
+            onClick={() => setSend(true)}
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            {t("families.sendCanonical")}
+          </Button>
         </div>
       </div>
       {!editable && <p className="text-xs text-muted-foreground">{t("families.readOnly")}</p>}
@@ -340,130 +354,146 @@ export function FamilyDetail({ id }: { id: number }) {
           </Button>
         </div>
         <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Input
-              aria-label={t("families.searchModels")}
-              placeholder={t("families.searchModels")}
-              className="col-span-2 h-11 sm:col-span-1 sm:h-9"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <select
-              aria-label={t("families.role")}
-              className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
-              value={filters.role ?? ""}
-              onChange={(event) =>
-                setFilters({
-                  ...filters,
-                  role: (["canonical", ...MEMBER_ROLES] as const).find(
-                    (role) => role === event.target.value,
-                  ),
-                })
-              }
-            >
-              <option value="">{t("families.allRoles")}</option>
-              {(["canonical", ...MEMBER_ROLES] as const).map((role) => (
-                <option key={role} value={role}>
-                  {t(`families.role.${role}`)}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label={t("families.sort")}
-              className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
-              value={filters.sort}
-              onChange={(event) =>
-                setFilters({ ...filters, sort: SORTS.find((sort) => sort === event.target.value) })
-              }
-            >
-              {SORTS.map((sort) => (
-                <option key={sort} value={sort}>
-                  {t(`families.sort.${sort}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <details>
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-              {t("families.moreFilters")}{" "}
-              {[filters.file_type, filters.known_good, filters.has_revisions, filters.source].some(
-                (value) => value !== undefined,
-              ) &&
-                `(${[filters.file_type, filters.known_good, filters.has_revisions, filters.source].filter((value) => value !== undefined).length})`}
+          <Input
+            aria-label={t("families.searchModels")}
+            placeholder={t("families.searchModels")}
+            className="h-11 w-full sm:h-9"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <details className="rounded-md border border-border bg-card px-3 py-2">
+            <summary className="cursor-pointer text-sm font-medium hover:text-primary">
+              {t("families.filterAndSort")}
+              {activeFilterCount > 0 && ` (${activeFilterCount})`}
             </summary>
-            <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
-              <select
-                aria-label={t("families.formats")}
-                className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
-                value={filters.file_type ?? ""}
-                onChange={(event) =>
-                  setFilters({
-                    ...filters,
-                    file_type: FORMATS.find((format) => format === event.target.value),
-                  })
-                }
-              >
-                <option value="">{t("families.allFormats")}</option>
-                {FORMATS.map((format) => (
-                  <option key={format} value={format}>
-                    {format.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label={t("families.knownGood")}
-                className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
-                value={filters.known_good === undefined ? "" : String(filters.known_good)}
-                onChange={(event) =>
-                  setFilters({
-                    ...filters,
-                    known_good: event.target.value ? event.target.value === "true" : undefined,
-                  })
-                }
-              >
-                <option value="">
-                  {t("families.knownGood")}: {t("families.any")}
-                </option>
-                <option value="true">{t("families.hasKnownGood")}</option>
-                <option value="false">{t("families.noKnownGood")}</option>
-              </select>
-              <select
-                aria-label={t("families.revisions")}
-                className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
-                value={filters.has_revisions === undefined ? "" : String(filters.has_revisions)}
-                onChange={(event) =>
-                  setFilters({
-                    ...filters,
-                    has_revisions: event.target.value ? event.target.value === "true" : undefined,
-                  })
-                }
-              >
-                <option value="">
-                  {t("families.revisions")}: {t("families.any")}
-                </option>
-                <option value="true">{t("families.hasRevisions")}</option>
-                <option value="false">{t("families.noRevisions")}</option>
-              </select>
-              <select
-                aria-label={t("families.source")}
-                className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
-                value={filters.source ?? ""}
-                onChange={(event) =>
-                  setFilters({
-                    ...filters,
-                    source:
-                      event.target.value === "vault" || event.target.value === "external"
-                        ? event.target.value
-                        : undefined,
-                  })
-                }
-              >
-                <option value="">
-                  {t("families.source")}: {t("families.any")}
-                </option>
-                <option value="vault">{t("families.vault")}</option>
-                <option value="external">{t("families.external")}</option>
-              </select>
+            <div className="mt-3 space-y-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select
+                  aria-label={t("families.role")}
+                  className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
+                  value={filters.role ?? ""}
+                  onChange={(event) =>
+                    setFilters({
+                      ...filters,
+                      role: (["canonical", ...MEMBER_ROLES] as const).find(
+                        (role) => role === event.target.value,
+                      ),
+                    })
+                  }
+                >
+                  <option value="">{t("families.allRoles")}</option>
+                  {(["canonical", ...MEMBER_ROLES] as const).map((role) => (
+                    <option key={role} value={role}>
+                      {t(`families.role.${role}`)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label={t("families.sort")}
+                  className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
+                  value={filters.sort}
+                  onChange={(event) =>
+                    setFilters({
+                      ...filters,
+                      sort: SORTS.find((sort) => sort === event.target.value),
+                    })
+                  }
+                >
+                  {SORTS.map((sort) => (
+                    <option key={sort} value={sort}>
+                      {t(`families.sort.${sort}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <details>
+                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+                  {t("families.moreFilters")}{" "}
+                  {[
+                    filters.file_type,
+                    filters.known_good,
+                    filters.has_revisions,
+                    filters.source,
+                  ].some((value) => value !== undefined) &&
+                    `(${[filters.file_type, filters.known_good, filters.has_revisions, filters.source].filter((value) => value !== undefined).length})`}
+                </summary>
+                <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  <select
+                    aria-label={t("families.formats")}
+                    className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
+                    value={filters.file_type ?? ""}
+                    onChange={(event) =>
+                      setFilters({
+                        ...filters,
+                        file_type: FORMATS.find((format) => format === event.target.value),
+                      })
+                    }
+                  >
+                    <option value="">{t("families.allFormats")}</option>
+                    {FORMATS.map((format) => (
+                      <option key={format} value={format}>
+                        {format.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label={t("families.knownGood")}
+                    className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
+                    value={filters.known_good === undefined ? "" : String(filters.known_good)}
+                    onChange={(event) =>
+                      setFilters({
+                        ...filters,
+                        known_good: event.target.value ? event.target.value === "true" : undefined,
+                      })
+                    }
+                  >
+                    <option value="">
+                      {t("families.knownGood")}: {t("families.any")}
+                    </option>
+                    <option value="true">{t("families.hasKnownGood")}</option>
+                    <option value="false">{t("families.noKnownGood")}</option>
+                  </select>
+                  <select
+                    aria-label={t("families.revisions")}
+                    className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
+                    value={filters.has_revisions === undefined ? "" : String(filters.has_revisions)}
+                    onChange={(event) =>
+                      setFilters({
+                        ...filters,
+                        has_revisions: event.target.value
+                          ? event.target.value === "true"
+                          : undefined,
+                      })
+                    }
+                  >
+                    <option value="">
+                      {t("families.revisions")}: {t("families.any")}
+                    </option>
+                    <option value="true">{t("families.hasRevisions")}</option>
+                    <option value="false">{t("families.noRevisions")}</option>
+                  </select>
+                  <select
+                    aria-label={t("families.source")}
+                    className={cn(inputClasses, "h-11 min-w-0 text-xs sm:h-9")}
+                    value={filters.source ?? ""}
+                    onChange={(event) =>
+                      setFilters({
+                        ...filters,
+                        source:
+                          event.target.value === "vault" || event.target.value === "external"
+                            ? event.target.value
+                            : undefined,
+                      })
+                    }
+                  >
+                    <option value="">
+                      {t("families.source")}: {t("families.any")}
+                    </option>
+                    <option value="vault">{t("families.vault")}</option>
+                    <option value="external">{t("families.external")}</option>
+                  </select>
+                </div>
+              </details>
             </div>
           </details>
         </div>

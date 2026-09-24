@@ -79,12 +79,12 @@ test.describe("Manual Model Families", () => {
       await page
         .getByRole("button", { name: `Actions for ${models[1].name}`, exact: true })
         .click();
-      await page.getByRole("menuitem", { name: "Make canonical", exact: true }).click();
-      const canonical = page.getByRole("dialog", { name: "Make canonical" });
+      await page.getByRole("menuitem", { name: "Make main Model", exact: true }).click();
+      const canonical = page.getByRole("dialog", { name: "Make main Model" });
       await canonical
         .getByRole("combobox", { name: "Previous canonical becomes" })
         .selectOption("rescaled");
-      await canonical.getByRole("button", { name: "Make canonical", exact: true }).click();
+      await canonical.getByRole("button", { name: "Make main Model", exact: true }).click();
       await expect(canonical).toHaveCount(0);
       const family: FamilyRead = await (
         await page.request.get(`${API}/api/v1/families/${familyId}`)
@@ -101,7 +101,7 @@ test.describe("Manual Model Families", () => {
       await expect(comparison.getByRole("status", { name: "Loading 3D preview" })).toHaveCount(0);
       await expect(comparison.getByRole("table")).toBeVisible();
       await expect(
-        comparison.getByRole("row", { name: "Variation Rescaled Canonical" }),
+        comparison.getByRole("row", { name: "Variation Rescaled Main Model" }),
       ).toBeVisible();
       const areaRatio = await silhouetteAreaRatio(
         page,
@@ -316,7 +316,7 @@ test.describe("Manual Model Families", () => {
         )
         .toBe("ready");
       await page.goto(`/families/${family!.id}`);
-      await page.getByRole("button", { name: "Print canonical Model", exact: true }).click();
+      await page.getByRole("button", { name: "Print main Model", exact: true }).click();
       const send = page.getByRole("dialog", { name: "Send to printer" });
       await expect(
         send.getByText(`${models[1].name}.gcode`, { exact: true }).first(),
@@ -403,8 +403,8 @@ test.describe("Manual Model Families", () => {
       families.push(destination.id);
       // ── Cross-Family selection requires a review and one atomic move ──
       await page.goto(`/families/${destination.id}`);
-      await page.getByRole("button", { name: "Add member", exact: true }).click();
-      const add = page.getByRole("dialog", { name: "Add member" });
+      await page.getByRole("button", { name: "Add variation", exact: true }).click();
+      const add = page.getByRole("dialog", { name: "Add variation" });
       await add.getByRole("textbox", { name: "Add Models" }).fill(models[1].name);
       await add.getByRole("checkbox", { name: `Select ${models[1].name}`, exact: true }).check();
       await add.getByRole("button", { name: "Review move" }).click();
