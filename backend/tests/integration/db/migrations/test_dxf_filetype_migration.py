@@ -81,6 +81,20 @@ def _exercise_upgrade(url: str, *, postgres: bool) -> None:
                 "existing.stl",
                 "drawing.dxf",
             }
+            drawing = session.exec(
+                select(File).where(File.original_filename == "drawing.dxf")
+            ).one()
+            session.delete(drawing)
+            session.commit()
+
+        command.downgrade(config, PREDECESSOR)
+        with Session(engine) as session:
+            assert [row.original_filename for row in session.exec(select(File))] == [
+                "existing.stl"
+            ]
+        assert "uq_files_live_recommended_gcode" in {
+            row["name"] for row in inspect(engine).get_indexes("files")
+        }
     finally:
         engine.dispose()
 

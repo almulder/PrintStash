@@ -70,6 +70,13 @@ def downgrade() -> None:
     with op.batch_alter_table("files") as batch_op:
         batch_op.drop_index("uq_files_live_recommended_gcode_text")
     if op.get_bind().dialect.name == "postgresql":
+        old_type = postgresql.ENUM(
+            "STL", "THREE_MF", "GCODE", "OBJ", "STEP", name="filetype"
+        )
+        # A database created from current metadata and stamped at head has no
+        # native enum. Recreate it for downgrade; on an upgraded database the
+        # pre-existing type is retained.
+        old_type.create(op.get_bind(), checkfirst=True)
         op.alter_column(
             "files",
             "file_type",
@@ -83,9 +90,7 @@ def downgrade() -> None:
                 name="filetype",
                 native_enum=False,
             ),
-            type_=postgresql.ENUM(
-                "STL", "THREE_MF", "GCODE", "OBJ", "STEP", name="filetype"
-            ),
+            type_=old_type,
             existing_nullable=False,
             postgresql_using="file_type::filetype",
         )
