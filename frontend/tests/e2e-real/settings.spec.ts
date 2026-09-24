@@ -740,7 +740,7 @@ test.describe("settings", () => {
     }
   });
 
-  test("shows AI Search choices and servers without nested menus", async ({ page }, testInfo) => {
+  test("shows AI Search setup choices without nested menus", async ({ page }, testInfo) => {
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await openAiSearchSettings(page);

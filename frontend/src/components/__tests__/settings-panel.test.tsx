@@ -1409,7 +1409,7 @@ describe("SettingsPanel", () => {
 
   it("keeps model matching out of maintenance", async () => {
     renderSettings({ at: "/settings?section=maintenance" });
-    expect(await screen.findByRole("button", { name: "Quick Audit" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Run quick check" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Similar models" })).toBeNull();
   });
 
