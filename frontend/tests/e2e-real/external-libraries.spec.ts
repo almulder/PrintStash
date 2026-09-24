@@ -84,6 +84,7 @@ test.describe("mounted library source root recovery", () => {
         (item: { original_filename: string }) => item.original_filename === `${name}.stl`,
       );
       expect(file).toBeDefined();
+      expect(file.is_external).toBe(true);
 
       const preview = page.waitForResponse((response) =>
         response.url().endsWith(`/api/v1/files/${file.id}/stl`),
