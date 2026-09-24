@@ -148,7 +148,12 @@ test.describe("Standalone similarity", () => {
         for (const model of models) await expect(modelCard(page, model.name)).toBeVisible();
       });
       await page.goto("/library/similar");
-      await expect(page.getByRole("link", { name: "Compare" })).toBeVisible();
+      const compare = page
+        .getByRole("listitem")
+        .filter({ hasText: models[0].name })
+        .filter({ hasText: models[1].name })
+        .getByRole("link", { name: "Compare" });
+      await expect(compare).toBeVisible();
       await test.step("Review filters change the visible candidate set", async () => {
         await page.getByText("Advanced settings", { exact: true }).click();
         await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible();
@@ -161,15 +166,15 @@ test.describe("Standalone similarity", () => {
         ]) {
           const filter = page.getByRole("combobox", { name, exact: true });
           await filter.selectOption(absent);
-          await expect(page.getByRole("link", { name: "Compare" })).toHaveCount(0);
+          await expect(compare).toHaveCount(0);
           await filter.selectOption(reset);
-          await expect(page.getByRole("link", { name: "Compare" })).toBeVisible();
+          await expect(compare).toBeVisible();
         }
         const knownGood = page.getByRole("checkbox", { name: "Has a known-good Revision" });
         await knownGood.click();
-        await expect(page.getByRole("link", { name: "Compare" })).toHaveCount(0);
+        await expect(compare).toHaveCount(0);
         await knownGood.click();
-        await expect(page.getByRole("link", { name: "Compare" })).toBeVisible();
+        await expect(compare).toBeVisible();
         await page.getByText("Advanced settings", { exact: true }).click();
       });
       for (const [label, width, height] of [
@@ -183,7 +188,7 @@ test.describe("Standalone similarity", () => {
         ).toBe(true);
       }
       await page.setViewportSize({ width: 1280, height: 800 });
-      await page.getByRole("link", { name: "Compare" }).click();
+      await compare.click();
       await expect(
         page.getByRole("heading", { name: "Compare models", exact: true }),
       ).toBeVisible();
