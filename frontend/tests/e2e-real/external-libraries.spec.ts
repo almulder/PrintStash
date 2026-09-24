@@ -2,14 +2,13 @@
  * External roots are deliberately opt-in for real-browser coverage.
  *
  * Set PLAYWRIGHT_EXTERNAL_LIBRARY_ROOT to an existing directory shared by the
- * browser test process and the backend process. The test removes only the
- * PrintStash marker it created, enrolls the resulting legacy/unbound row,
- * verifies scanned-file preview/download, and proves a subsequent upload is
- * written back into that exact root. Without the explicit environment path the
- * suite reports these contracts as skipped rather than pretending a local
- * directory is safe to use.
+ * browser test process and the backend process. Each test creates a separate
+ * child root under that test-owned directory, leaving the supplied parent
+ * untouched. The contracts verify scanned-file preview/download and explicit
+ * enrollment before external write-back. Without the environment path the suite
+ * reports them as skipped rather than treating an arbitrary directory as safe.
  */
-import { access, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { test, expect } from "./helpers";
@@ -28,10 +27,9 @@ test.describe("mounted library source root recovery", () => {
       );
       return;
     }
-    const root = externalRoot;
     const name = `e2e-mounted-preview-${Date.now()}`;
+    const root = path.join(externalRoot, name);
     const source = path.join(root, `${name}.stl`);
-    const marker = path.join(root, markerName);
     const original = Buffer.from(
       [
         `solid ${name}`,
@@ -47,6 +45,7 @@ test.describe("mounted library source root recovery", () => {
     );
     let libraryId: number | null = null;
 
+    await mkdir(root);
     await writeFile(source, original);
     try {
       expect(
@@ -105,14 +104,16 @@ test.describe("mounted library source root recovery", () => {
         chunks.push(Buffer.from(chunk));
       expect(Buffer.concat(chunks)).toEqual(original);
     } finally {
-      if (libraryId !== null) await page.request.delete(`/api/v1/libraries/${libraryId}`);
-      await rm(source, { force: true });
-      await rm(marker, { force: true });
-      await page.request.put("/api/v1/config", { data: { external_libraries_enabled: false } });
+      try {
+        if (libraryId !== null) await page.request.delete(`/api/v1/libraries/${libraryId}`);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+        await page.request.put("/api/v1/config", { data: { external_libraries_enabled: false } });
+      }
     }
   });
 
-  test("enrolls an unbound root before external write-back", async ({ page }) => {
+  test("reenrolls a root with a missing marker before external write-back", async ({ page }) => {
     if (!externalRoot) {
       test.skip(
         true,
@@ -120,11 +121,12 @@ test.describe("mounted library source root recovery", () => {
       );
       return;
     }
-    const root = externalRoot;
     const name = `e2e-external-${Date.now()}`;
+    const root = path.join(externalRoot, name);
     const marker = path.join(root, markerName);
     let libraryId: number | null = null;
 
+    await mkdir(root);
     try {
       const enable = await page.request.put("/api/v1/config", {
         data: { external_libraries_enabled: true },
@@ -139,17 +141,17 @@ test.describe("mounted library source root recovery", () => {
       libraryId = Number(created.id);
 
       await rm(marker, { force: true });
-      const unbound = await page.request.get("/api/v1/libraries");
-      expect(unbound.ok()).toBe(true);
-      const listed = await unbound.json();
+      const missing = await page.request.get("/api/v1/libraries");
+      expect(missing.ok()).toBe(true);
+      const listed = await missing.json();
       expect(listed.find((library: { id: number }) => library.id === libraryId)).toMatchObject({
-        binding_state: "unbound",
+        binding_state: "missing",
         root_enrollable: true,
         watch_active: false,
       });
 
       await page.goto("/settings?section=libraries");
-      await expect(page.getByText("Needs enrollment")).toBeVisible();
+      await expect(page.getByText("Root proof unavailable")).toBeVisible();
       await page.getByRole("button", { name: "Review and enroll" }).click();
       const confirmation = page.getByRole("dialog", { name: "Enroll mounted source root?" });
       await expect(confirmation).toBeVisible();
@@ -183,14 +185,14 @@ test.describe("mounted library source root recovery", () => {
         })
         .toBe(true);
     } finally {
-      if (libraryId !== null) {
-        await page.request.delete(`/api/v1/libraries/${libraryId}`);
+      try {
+        if (libraryId !== null) await page.request.delete(`/api/v1/libraries/${libraryId}`);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+        await page.request.put("/api/v1/config", {
+          data: { external_libraries_enabled: false },
+        });
       }
-      await rm(path.join(root, `${name}.gcode`), { force: true });
-      await rm(marker, { force: true });
-      await page.request.put("/api/v1/config", {
-        data: { external_libraries_enabled: false },
-      });
     }
   });
 });
