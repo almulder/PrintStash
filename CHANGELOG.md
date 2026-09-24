@@ -2,7 +2,22 @@
 
 ## Unreleased
 
+**Running from a git checkout? The old `docker-compose.yml` is now
+`docker-compose.advanced.yml`; `docker-compose.yml` now runs the single-container
+image. See UPGRADE.md before pulling.**
+
 ### Changed
+
+- Nine Compose files became two in the repository root: `docker-compose.yml`
+  starts PrintStash as one container (web UI and full API) with no
+  configuration, and `docker-compose.advanced.yml` wires every setting with its
+  default, plus optional PostgreSQL and S3. The light, production and
+  build-from-source variants are folded into the advanced file; maintainer
+  stacks moved under `deploy/`.
+
+- CI no longer runs the eight per-image Docker build and Grype jobs or the
+  legacy MinIO-to-SeaweedFS migration job. Container publishing no longer runs
+  Grype scans; release builds and the legacy migration helper remain available.
 
 - AI Search settings now separate guided setup, search types, AI servers and
   technical options. Search types and compatible models appear as visible choices;
@@ -92,10 +107,10 @@
   explanations.
 - Model detail tabs fit their panel without horizontal scrolling. Similar Models
   keep readable names and reachable comparison actions in narrow panels.
-- The library groups organization actions under “Library tools” and Family filters
-  with the other advanced filters,
-  keeping the initial toolbar focused on uploading and browsing. Active Family
-  filters remain discoverable when opening a saved or shared view.
+- Family pages explain that a Family groups versions of one design, show the main
+  Model in context, and place technical details and filters behind optional controls.
+  The library exposes multipart creation as a separate action on desktop and mobile.
+  Active Family filters remain discoverable when opening a saved or shared view.
 
 - AI search recovers bounded name misspellings, finds functional holder metadata,
   and rejects weak short-query matches before combining retrieval signals.

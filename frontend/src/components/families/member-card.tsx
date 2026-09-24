@@ -109,42 +109,12 @@ export function FamilyMemberCard({
           </DropdownMenu>
         )}
       </header>
-      <dl className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2">
-        {metric(
-          t("families.scale"),
-          member.scale_factor === null
-            ? t("families.unknown")
-            : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }).format(member.scale_factor)}×`,
-        )}
-        {metric(t("families.sourceFiles"), member.source_file_count)}
-        {metric(t("families.revisions"), member.gcode_revision_count)}
-        {metric(t("families.knownGood"), member.known_good_count)}
-        <div className="col-span-2">
-          {metric(
-            t("families.latestPrint"),
-            member.latest_print_outcome
-              ? filterValueText("print_outcome", member.latest_print_outcome)
-              : t("families.noPrint"),
-          )}
-        </div>
-      </dl>
-      <dl className="mt-2 text-xs">
-        <dt className="text-muted-foreground">{t("families.dimensions")}</dt>
-        <dd className="tabular-nums">
-          {[
-            member.preview_file?.metadata?.bbox_x_mm,
-            member.preview_file?.metadata?.bbox_y_mm,
-            member.preview_file?.metadata?.bbox_z_mm,
-          ]
-            .map((value) =>
-              value == null
-                ? "—"
-                : new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value),
-            )
-            .join(" × ")}{" "}
-          {member.units === "mm" ? t("families.millimeters") : t("families.unknownUnits")}
-        </dd>
-      </dl>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {t("families.latestPrint")}:{" "}
+        {member.latest_print_outcome
+          ? filterValueText("print_outcome", member.latest_print_outcome)
+          : t("families.noPrint")}
+      </p>
       {member.relative_review_required && (
         <p className="mt-2 text-xs font-medium text-warning">{t("families.reviewRelative")}</p>
       )}
@@ -153,16 +123,49 @@ export function FamilyMemberCard({
           {member.transformation_note}
         </p>
       )}
-      {member.model.source_url && (
-        <a
-          href={member.model.source_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block text-xs text-primary hover:underline"
-        >
-          {t("families.source")}
-        </a>
-      )}
+      <details className="mt-3 border-t border-border pt-2">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+          {t("families.moreDetails")}
+        </summary>
+        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3">
+          {metric(
+            t("families.scale"),
+            member.scale_factor === null
+              ? t("families.unknown")
+              : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }).format(member.scale_factor)}×`,
+          )}
+          {metric(t("families.sourceFiles"), member.source_file_count)}
+          {metric(t("families.revisions"), member.gcode_revision_count)}
+          {metric(t("families.knownGood"), member.known_good_count)}
+          <div className="col-span-2 sm:col-span-3">
+            <dt className="text-xs text-muted-foreground">{t("families.dimensions")}</dt>
+            <dd className="text-sm tabular-nums">
+              {[
+                member.preview_file?.metadata?.bbox_x_mm,
+                member.preview_file?.metadata?.bbox_y_mm,
+                member.preview_file?.metadata?.bbox_z_mm,
+              ]
+                .map((value) =>
+                  value == null
+                    ? "—"
+                    : new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value),
+                )
+                .join(" × ")}{" "}
+              {member.units === "mm" ? t("families.millimeters") : t("families.unknownUnits")}
+            </dd>
+          </div>
+        </dl>
+        {member.model.source_url && (
+          <a
+            href={member.model.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-block text-xs text-primary hover:underline"
+          >
+            {t("families.source")}
+          </a>
+        )}
+      </details>
     </article>
   );
 }

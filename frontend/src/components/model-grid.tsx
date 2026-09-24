@@ -2195,6 +2195,21 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                       <SlidersHorizontal className="h-4 w-4" aria-hidden />
                       {t("vault.libraryTools")}
                     </Button>
+                    {docView === "models" && (
+                      <Button
+                        variant="ghost"
+                        role="menuitem"
+                        className="w-full justify-start"
+                        disabled={!user?.is_superuser && !canWriteCollection(selectedCollectionRow)}
+                        onClick={() => {
+                          setMoreOpen(false);
+                          setMultipartCreateOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" aria-hidden />
+                        {t("multipart.new")}
+                      </Button>
+                    )}
                     {auth.isAuthenticated && (
                       <>
                         <button
@@ -2339,6 +2354,24 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                   >
                     {uiText("Upload")}
                   </Button>
+                  {docView === "models" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setMultipartCreateOpen(true)}
+                      disabled={!user?.is_superuser && !canWriteCollection(selectedCollectionRow)}
+                      title={
+                        user?.is_superuser || canWriteCollection(selectedCollectionRow)
+                          ? undefined
+                          : t("multipart.editAccess")
+                      }
+                      className="h-10 sm:h-8"
+                    >
+                      <Plus className="h-4 w-4" aria-hidden />
+                      {t("multipart.new")}
+                    </Button>
+                  )}
                 </div>
                 <Button
                   variant={showLibraryTools ? "secondary" : "outline"}
@@ -2511,21 +2544,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                   <Plus className="w-4 h-4 text-muted-foreground" />
                   {uiText("New collection")}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => setMultipartCreateOpen(true)}
-                  disabled={!user?.is_superuser && !canWriteCollection(selectedCollectionRow)}
-                  title={
-                    user?.is_superuser || canWriteCollection(selectedCollectionRow)
-                      ? undefined
-                      : t("multipart.editAccess")
-                  }
-                  className="h-10 sm:h-8"
-                >
-                  <Plus className="h-4 w-4" /> {t("multipart.new")}
-                </Button>{" "}
                 {auth.isAuthenticated && (
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
