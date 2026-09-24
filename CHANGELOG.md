@@ -4,6 +4,9 @@
 
 ### Added
 
+- Managed source Artifacts can be moved to trash and restored individually from
+  Model detail. The Model, sibling Artifacts, Revisions and print history remain.
+  Linked Library-source originals stay protected.
 - A PNG version of the PrintStash icon for Unraid and other container dashboards
   that cannot use SVG icons.
 
