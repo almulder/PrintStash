@@ -8,7 +8,7 @@ from tests.paths import REPO_ROOT
 
 
 def _template() -> ElementTree.Element:
-    return ElementTree.parse(REPO_ROOT / "templates/printstash-api.xml").getroot()
+    return ElementTree.parse(REPO_ROOT / "templates/printstash.xml").getroot()
 
 
 def _configs(kind: str) -> list[ElementTree.Element]:
@@ -21,11 +21,8 @@ def test_selects_the_unified_image() -> None:
     assert template.findtext("Name") == "PrintStash"
     assert template.findtext("Repository") == "ghcr.io/xiao-villamor/printstash:latest"
     assert template.findtext("Network") == "bridge"
-    assert template.findtext("TemplateURL", "").endswith(
-        "/templates/printstash-api.xml"
-    )
+    assert template.findtext("TemplateURL", "").endswith("/templates/printstash.xml")
     assert not template.findtext("PostArgs")
-    assert not (REPO_ROOT / "templates/printstash-frontend.xml").exists()
 
 
 def test_exposes_only_the_web_port() -> None:
@@ -72,3 +69,29 @@ def test_community_applications_profile_describes_one_container() -> None:
     assert "one container" in description
     assert "two-container users" in description
     assert "Install **PrintStash-API first**" not in description
+
+
+def test_only_one_current_catalog_template() -> None:
+    templates = [
+        ElementTree.parse(path).getroot()
+        for path in sorted((REPO_ROOT / "templates").glob("printstash*.xml"))
+    ]
+    current = [item for item in templates if item.findtext("Deprecated") != "true"]
+
+    assert len(current) == 1
+    assert current[0].findtext("Name") == "PrintStash"
+
+
+def test_legacy_catalog_templates_are_deprecated() -> None:
+    for filename, name, image in (
+        ("printstash-api.xml", "PrintStash-API", "printstash-api"),
+        ("printstash-frontend.xml", "PrintStash-Frontend", "printstash-frontend"),
+    ):
+        template = ElementTree.parse(REPO_ROOT / "templates" / filename).getroot()
+
+        assert template.findtext("Deprecated") == "true"
+        assert template.findtext("Name") == name
+        assert template.findtext("Repository") == (
+            f"ghcr.io/xiao-villamor/{image}:latest"
+        )
+        assert template.findtext("TemplateURL", "").endswith(f"/templates/{filename}")

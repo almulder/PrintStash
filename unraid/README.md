@@ -40,15 +40,15 @@ See the [full capabilities](https://www.printstash.org/capabilities),
 
 ## Install with the Unraid template
 
-The [PrintStash template](../templates/printstash-api.xml) now uses one container:
+The [PrintStash template](../templates/printstash.xml) now uses one container:
 the published `ghcr.io/xiao-villamor/printstash:latest` image runs the web UI
 and API together. No custom Docker network, second container, API port, JWT
 secret, or command override is needed.
 
-1. Install **PrintStash** using the updated template. If your catalog still
-   shows **PrintStash-API**, check that its image is
-   `ghcr.io/xiao-villamor/printstash:latest` before installing; an older cached
-   template still needs the separate frontend.
+1. Install **PrintStash** using the `printstash.xml` template. The old
+   **PrintStash-API** and **PrintStash-Frontend** templates are deprecated; do
+   not select them for a new installation. Confirm the image is
+   `ghcr.io/xiao-villamor/printstash:latest` before installing.
 2. Keep **Network** on `bridge` and the **WebUI port** at `3000`, or choose another
    free host port.
 3. Keep **Appdata** at `/mnt/user/appdata/printstash`, or choose a dedicated
