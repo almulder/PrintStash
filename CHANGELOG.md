@@ -70,6 +70,10 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- Mounted Library source folders keep their exact capitalization and spaces in
+  collection labels and write-back destinations. Case- or punctuation-distinct
+  folders remain separate, including on rescan of previously indexed sources.
+
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
 

@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { listModelPage } from "@/lib/api/models";
+import { collectionDisplayPath } from "@/lib/collection-display";
 import { userMessage } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
+import { useCollections } from "@/lib/queries";
 import { useAuthenticatedAssetUrl } from "@/lib/use-authenticated-asset-url";
 import type { ModelListItem } from "@/types/models";
 
@@ -47,6 +49,7 @@ export function FamilyModelPicker({
 }) {
   const { t } = useI18n();
   const { user } = useAuth();
+  const { data: collections = [] } = useCollections();
   const id = useId();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -106,7 +109,8 @@ export function FamilyModelPicker({
                 <span className="block truncate text-xs text-muted-foreground">
                   {model.family
                     ? t("families.alreadyMember", { name: model.family.name })
-                    : (model.collection ?? t("families.unfiled"))}
+                    : (collectionDisplayPath(collections, model.collection) ??
+                      t("families.unfiled"))}
                 </span>
               </span>
             </label>

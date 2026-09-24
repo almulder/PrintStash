@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { listModels } from "@/lib/api/models";
 import { listExternalLibraries } from "@/lib/api/libraries";
 import { listCollections } from "@/lib/api/taxonomy";
+import { collectionDisplayPath } from "@/lib/collection-display";
 import {
   cancelSimilarityRun,
   getSimilarityStatus,
@@ -338,7 +339,7 @@ export function SimilaritySettingsPanel() {
             ))}
             {collections.data?.map((collection) => (
               <option key={collection.id} value={collection.id}>
-                {collection.path}
+                {collectionDisplayPath(collections.data ?? [], collection.path)}
               </option>
             ))}
           </select>

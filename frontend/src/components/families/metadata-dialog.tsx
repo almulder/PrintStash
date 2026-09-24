@@ -12,6 +12,7 @@ import {
 import { userMessage } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n";
 import { useCollections } from "@/lib/queries";
+import { collectionDisplayPath } from "@/lib/collection-display";
 import type { FamilyRead } from "@/types/families";
 import { FamilyCoverPicker } from "./cover-picker";
 
@@ -102,7 +103,7 @@ export function FamilyMetadataDialog({
                   ?.filter((item) => item.effective_role !== "view")
                   .map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.path}
+                      {collectionDisplayPath(collections.data ?? [], item.path)}
                     </option>
                   ))}
               </select>
@@ -299,7 +300,7 @@ export function FamilyBulkDialog({
               ?.filter((item) => item.effective_role !== "view")
               .map((item) => (
                 <option key={item.id} value={item.path}>
-                  {item.path}
+                  {collectionDisplayPath(collections.data ?? [], item.path)}
                 </option>
               ))}
           </select>

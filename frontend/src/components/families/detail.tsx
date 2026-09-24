@@ -26,6 +26,8 @@ import { Link } from "@/lib/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "@/lib/navigation";
 import { useTags } from "@/lib/queries";
+import { useCollections } from "@/lib/queries";
+import { collectionDisplayPath } from "@/lib/collection-display";
 import { useAuthenticatedAssetUrl } from "@/lib/use-authenticated-asset-url";
 import type { FamilyMemberItem, FamilyMemberParams } from "@/types/families";
 import { FamilyComparison } from "./comparison";
@@ -63,6 +65,7 @@ export function FamilyDetail({ id }: { id: number }) {
   const router = useRouter();
   const cache = useQueryClient();
   const tags = useTags();
+  const { data: collections = [] } = useCollections();
   const familyQuery = useQuery({ queryKey: ["families", id], queryFn: () => getFamily(id) });
   const family = familyQuery.data;
   const [filters, setFilters] = useState<FamilyMemberParams>({ sort: "order" });
@@ -171,7 +174,8 @@ export function FamilyDetail({ id }: { id: number }) {
         description={
           <>
             {t("families.memberCount", { count: family.member_count })}
-            {family.collection && ` · ${family.collection}`}
+            {family.collection &&
+              ` · ${collectionDisplayPath(collections, family.collection) ?? ""}`}
           </>
         }
         actions={

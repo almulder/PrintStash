@@ -15,6 +15,7 @@ import {
   listSimilarityCandidates,
 } from "@/lib/api/similarity";
 import { listCollections } from "@/lib/api/taxonomy";
+import { collectionDisplayPath } from "@/lib/collection-display";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "@/lib/link";
 import { evidenceDescription, evidenceLabel, isSimilarityRunActive } from "@/lib/similarity";
@@ -253,7 +254,7 @@ export function SimilarityQueue({ modelId }: { modelId?: number }) {
                     <option value="">{t("similarity.library")}</option>
                     {collections.data?.map((row) => (
                       <option key={row.id} value={row.id}>
-                        {row.path}
+                        {collectionDisplayPath(collections.data ?? [], row.path)}
                       </option>
                     ))}
                   </select>

@@ -70,6 +70,19 @@ afterEach(() => {
 });
 
 describe("ModelCard", () => {
+  it("shows the collection label instead of its slug", () => {
+    renderApp(
+      <ModelCard
+        model={{ ...model, collection: "testing/my-parts", tags: ["My Parts"] }}
+        collectionLabel="Testing/My Parts"
+      />,
+    );
+
+    expect(screen.getByText("Testing/My Parts")).toBeVisible();
+    expect(screen.queryByText("testing/my-parts")).toBeNull();
+    expect(screen.getByText("My Parts")).toBeVisible();
+  });
+
   describe("quick tag access", () => {
     it("offers adding tags on an editable untagged card", () => {
       renderApp(<ModelCard model={model} onEditTags={vi.fn<(item: ModelListItem) => void>()} />);

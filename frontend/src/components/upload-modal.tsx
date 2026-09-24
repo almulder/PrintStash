@@ -3,6 +3,7 @@
 import { uiMessage, type MessageDescriptor } from "@/lib/locale";
 import { uiText } from "@/lib/locale";
 import { useI18n, useUiLocale } from "@/lib/i18n";
+import { collectionDisplayPath } from "@/lib/collection-display";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1004,7 +1005,7 @@ export function UploadModal({
                       className="w-full h-10 flex items-center justify-between bg-surface-container-lowest text-on-surface font-mono text-sm border border-outline-variant rounded px-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     >
                       <span className={collectionPath ? "" : "text-on-surface-variant/60"}>
-                        {collectionPath ||
+                        {collectionDisplayPath(collections, collectionPath) ||
                           (user?.is_superuser ? uiText("None") : uiText("Choose collection"))}
                       </span>
                       <ChevronDown className="h-4 w-4 text-on-surface-variant" />
@@ -1046,7 +1047,8 @@ export function UploadModal({
                             : "text-on-surface-variant hover:bg-surface-container-low"
                         }`}
                       >
-                        {c.path} <span className="opacity-50">({c.model_count})</span>
+                        {collectionDisplayPath(collections, c.path)}{" "}
+                        <span className="opacity-50">({c.model_count})</span>
                       </button>
                     ))
                   )}

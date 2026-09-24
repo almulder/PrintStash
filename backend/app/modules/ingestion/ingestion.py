@@ -785,15 +785,31 @@ def resolve_write_target(
     # paths, collection mapping, and write-back keys identical even when an
     # operator configured the library through a symlink or relative path.
     root = Path(library.root_path).expanduser().resolve(strict=False)
-    subpath = ""
+    segments: list[str] = []
     if (
         library.collection_mode == ExternalLibraryCollectionMode.MIRROR
         and model.collection_id is not None
     ):
         coll = session.get(Collection, model.collection_id)
         if coll is not None:
-            subpath = coll.path
-    dest_dir = root / subpath if subpath else root
+            seen: set[int] = set()
+            while coll is not None:
+                if (
+                    coll.id is None
+                    or coll.id in seen
+                    or coll.name in {"", ".", ".."}
+                    or "/" in coll.name
+                    or "\\" in coll.name
+                ):
+                    raise StorageCollisionError(
+                        "external_library_invalid_collection_path"
+                    )
+                seen.add(coll.id)
+                segments.append(coll.name)
+                coll = (
+                    session.get(Collection, coll.parent_id) if coll.parent_id else None
+                )
+    dest_dir = root.joinpath(*reversed(segments))
     dest_path = _collision_safe_path(dest_dir, original_filename)
     try:
         canonical_root = root.resolve(strict=True)
@@ -950,7 +966,10 @@ def run_ingestion_pipeline(
                 raise RuntimeError("captured_artifact_trashed")
 
         meta, thumb_bytes = strategy.process(staged_path, report)
-        if thumb_bytes is None and strategy.file_type not in (FileType.GCODE, FileType.DXF):
+        if thumb_bytes is None and strategy.file_type not in (
+            FileType.GCODE,
+            FileType.DXF,
+        ):
             logger.warning(
                 "ingestion_job job_id=%s stage=thumbnail result=missing", job_id
             )

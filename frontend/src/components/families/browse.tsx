@@ -1,6 +1,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Boxes, Star } from "lucide-react";
 import { ModelCard } from "@/components/model-card";
+import { collectionDisplayPath } from "@/lib/collection-display";
+import { useCollections } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { browseFamilies, starFamily } from "@/lib/api/families";
 import { userMessage } from "@/lib/errors";
@@ -75,6 +77,7 @@ function FamilyCard({ family, onChange }: { family: FamilyRead; onChange: () => 
 /** The server owns the mixed order and page boundary; never regroup a Model page. */
 export function FamilyBrowseGrid({ params }: { params: FamilyBrowseParams }) {
   const { t } = useI18n();
+  const { data: collections = [] } = useCollections();
   const query = useInfiniteQuery({
     queryKey: ["families", "browse", params],
     initialPageParam: "",
@@ -118,7 +121,11 @@ export function FamilyBrowseGrid({ params }: { params: FamilyBrowseParams }) {
               onChange={() => void query.refetch()}
             />
           ) : (
-            <ModelCard key={`model-${item.model.id}`} model={item.model} />
+            <ModelCard
+              key={`model-${item.model.id}`}
+              model={item.model}
+              collectionLabel={collectionDisplayPath(collections, item.model.collection)}
+            />
           ),
         )}
       </div>

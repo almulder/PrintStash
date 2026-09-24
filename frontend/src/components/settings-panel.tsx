@@ -7,6 +7,7 @@ import { formatNumber } from "@/lib/format";
 import { currentLocale } from "@/lib/locale";
 import { uiText } from "@/lib/locale";
 import { useUiLocale } from "@/lib/i18n";
+import { collectionDisplayPath } from "@/lib/collection-display";
 
 import { useCallback, useEffect, useState } from "react";
 import { BackupRunHistory } from "@/components/backup-run-history";
@@ -2290,7 +2291,7 @@ export function SettingsPanel() {
                             <option value="">{uiText("Select collection")}</option>
                             {grantableCollections.map((row) => (
                               <option key={row.id} value={row.id}>
-                                {row.path}
+                                {collectionDisplayPath(grantableCollections, row.path)}
                               </option>
                             ))}
                           </select>
