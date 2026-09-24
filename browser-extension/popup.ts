@@ -34,6 +34,7 @@ import {
   type PrintablesSelectedFile,
 } from "./printables-capture.ts";
 import {
+  CaptureCapacityError,
   captureRichFiles,
   type BrowserCaptureFile,
   type CaptureStageRunner,
@@ -292,7 +293,15 @@ const runVaultStage: CaptureStageRunner = (stage: CaptureUploadStage, operation)
         ? "capture_vault_slot_upload_failed"
         : "capture_vault_finalize_failed";
   return runCaptureStage(
-    operation,
+    async (signal) => {
+      try {
+        return await operation(signal);
+      } catch (error) {
+        if (error instanceof CaptureCapacityError)
+          throw new CaptureDiagnosticError(failureCode, error.message);
+        throw error;
+      }
+    },
     timeoutCode,
     failureCode,
     "PrintStash could not finish the selected file upload. Try again from Pending Imports.",
