@@ -4,6 +4,9 @@
 
 ### Added
 
+- DXF files can be imported as source Artifacts, downloaded with their original
+  bytes, and included in backups. Drawing previews are not yet available.
+
 - AI Search adds transactional text indexing for Models, Collections, Multipart
   Models and Documents, authorized lexical suggestions, hybrid results with match
   evidence, and local image/geometry search. Image queries support file selection,
