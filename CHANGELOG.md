@@ -56,6 +56,8 @@
 - The Unraid template uses the unified image with one persistent appdata mount,
   a working first-run setup default, and Unraid file-owner defaults.
 
+- Printables captures request each selected file host's browser permission once
+  before downloading, avoiding repeated permission dialogs for multi-file imports.
 - Browser captures accept multi-file selections within the review limit, release
   unfinished upload slots after transfer failures, and explain capacity errors.
 - Provider connection errors now distinguish missing MyMiniFactory OAuth setup,
