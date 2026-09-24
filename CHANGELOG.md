@@ -4,6 +4,9 @@
 
 ### Added
 
+- A PNG version of the PrintStash icon for Unraid and other container dashboards
+  that cannot use SVG icons.
+
 - AI Search adds transactional text indexing for Models, Collections, Multipart
   Models and Documents, authorized lexical suggestions, hybrid results with match
   evidence, and local image/geometry search. Image queries support file selection,
@@ -47,6 +50,10 @@
 
 - Browser captures accept multi-file selections within the review limit, release
   unfinished upload slots after transfer failures, and explain capacity errors.
+- Provider connection errors now distinguish missing MyMiniFactory OAuth setup,
+  rejected Cults credentials, provider outages, and invalid provider responses.
+- Routine HTTP client requests no longer fill INFO logs during PrusaLink polling;
+  printer errors and transport warnings remain visible.
 
 - AI Search mutations enforce token write scope, including caption edits, settings,
   generation management, local model operations and personal preferences.
