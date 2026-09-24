@@ -11,6 +11,7 @@ from alembic import command
 from app.db.migrate import _alembic_config
 from app.db.models import File, FileType, Model
 from app.db.url import normalize_database_url
+from tests.factories import build_file, build_model
 from tests.factories.migration_rows import (
     RELEASED_V0121_REVISION,
     create_released_v0121_postgres_schema,
@@ -30,21 +31,19 @@ def _exercise_upgrade(url: str, *, postgres: bool) -> None:
             command.stamp(config, RELEASED_V0121_REVISION)
         command.upgrade(config, PREDECESSOR)
         with Session(engine) as session:
-            model = Model(name="Existing", slug="dxf-migration-existing", hash="a" * 64)
-            session.add(model)
-            session.flush()
-            session.add(
-                File(
-                    model_id=model.id,
-                    path="/library/existing.stl",
-                    original_filename="existing.stl",
-                    file_type=FileType.STL,
-                    version=1,
-                    size_bytes=3,
-                    sha256="b" * 64,
-                )
+            model = build_model(
+                session, "Existing", slug="dxf-migration-existing", hash="a" * 64
             )
-            session.commit()
+            build_file(
+                session,
+                model,
+                filename="existing.stl",
+                file_type=FileType.STL,
+                path="/library/existing.stl",
+                version=1,
+                size_bytes=3,
+                sha256="b" * 64,
+            )
 
         command.upgrade(config, REVISION)
 
@@ -54,18 +53,18 @@ def _exercise_upgrade(url: str, *, postgres: bool) -> None:
             ).one()
             assert existing.file_type == FileType.STL
             assert existing.sha256 == "b" * 64
-            session.add(
-                File(
-                    model_id=existing.model_id,
-                    path="/library/drawing.dxf",
-                    original_filename="drawing.dxf",
-                    file_type=FileType.DXF,
-                    version=2,
-                    size_bytes=12,
-                    sha256="c" * 64,
-                )
+            model = session.get(Model, existing.model_id)
+            assert model is not None
+            build_file(
+                session,
+                model,
+                filename="drawing.dxf",
+                file_type=FileType.DXF,
+                path="/library/drawing.dxf",
+                version=2,
+                size_bytes=12,
+                sha256="c" * 64,
             )
-            session.commit()
             assert (
                 session.exec(select(File).where(File.file_type == FileType.DXF))
                 .one()
