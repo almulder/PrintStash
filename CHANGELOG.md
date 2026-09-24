@@ -4,6 +4,10 @@
 
 ### Added
 
+- Managed source Artifacts can be moved to trash and restored individually from
+  Model detail. The Model, sibling Artifacts, Revisions and print history remain.
+  Linked Library-source originals stay protected.
+
 - AI Search adds transactional text indexing for Models, Collections, Multipart
   Models and Documents, authorized lexical suggestions, hybrid results with match
   evidence, and local image/geometry search. Image queries support file selection,
