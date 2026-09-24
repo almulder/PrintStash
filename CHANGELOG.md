@@ -70,6 +70,10 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- A fault inside the browser tab is no longer reported as "Couldn't reach the
+  server". Only real `fetch` rejections map to that message; any other `TypeError`
+  now says to reload the page, and keeps its original text for diagnostics.
+
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
 

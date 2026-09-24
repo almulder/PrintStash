@@ -2636,6 +2636,7 @@
   "This remote backup changed or couldn't be verified, so it was not deleted.": "This remote backup changed or couldn't be verified, so it was not deleted.",
   "An item with that name already exists.": "An item with that name already exists.",
   "Couldn't reach the server. Check that PrintStash is running and try again.": "Couldn't reach the server. Check that PrintStash is running and try again.",
+  "Something went wrong in this browser tab. Reload the page and try again.": "Something went wrong in this browser tab. Reload the page and try again.",
   "Something went wrong reaching the server. Check that PrintStash is running and try again.": "Something went wrong reaching the server. Check that PrintStash is running and try again.",
   "items.deleteSelected": {
     "one": "Delete {value1} selected item?",
