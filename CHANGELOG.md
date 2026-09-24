@@ -70,6 +70,10 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- Removing a library source no longer fails with a server error when one of its
+  files was already in the trash. The failed attempt had also moved the source's
+  models to the trash while leaving the source itself in place.
+
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
 
