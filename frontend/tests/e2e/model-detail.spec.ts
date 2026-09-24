@@ -24,7 +24,7 @@ import type { ModelRead } from "../../src/types/models";
 useMockApi();
 
 test.describe("model detail route", () => {
-  test("trashes and restores one source while keeping the Model and Revision", async ({ page }) => {
+  test("restores a trashed source within its original Model", async ({ page }) => {
     let removed = false;
     let original: ModelRead | null = null;
     const modelBody = () => {
