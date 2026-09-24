@@ -98,6 +98,13 @@ const ERROR_MESSAGES = {
   storage_connection_target_in_use:
     "This target is used by Library sources or backups. Keep its location and account unchanged.",
   invalid_credentials: "Invalid username or password.",
+  provider_not_configured:
+    "MyMiniFactory is not configured on this PrintStash server. Ask the administrator to set its OAuth credentials.",
+  provider_auth_failed: "Cults rejected those credentials. Check the username and password.",
+  provider_retry_exhausted: "The provider is temporarily unavailable. Try again later.",
+  provider_transport_failed: "PrintStash could not reach the provider. Try again later.",
+  provider_request_failed: "The provider rejected the request. Try again later.",
+  provider_response_invalid: "The provider sent an invalid response. Try again later.",
   not_authenticated: "You must sign in to perform this action.",
   invalid_or_expired_token: "Your session has expired. Please sign in again.",
   // Models

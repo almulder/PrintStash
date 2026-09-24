@@ -98,6 +98,32 @@ describe("parseApiError", () => {
   });
 });
 
+describe("provider connection errors", () => {
+  it("explains missing MyMiniFactory application setup", () => {
+    expect(userMessage(new Error('HTTP 503: {"detail":"provider_not_configured"}'))).toMatch(
+      /MyMiniFactory.*server|server.*MyMiniFactory/i,
+    );
+  });
+
+  it("identifies rejected Cults credentials", () => {
+    expect(userMessage(new Error('HTTP 400: {"detail":"provider_auth_failed"}'))).toMatch(
+      /Cults.*credentials|credentials.*Cults/i,
+    );
+  });
+
+  it("explains a temporary provider outage", () => {
+    expect(userMessage(new Error('HTTP 503: {"detail":"provider_retry_exhausted"}'))).toMatch(
+      /provider.*unavailable|provider.*later/i,
+    );
+  });
+
+  it("explains an invalid provider response", () => {
+    expect(userMessage(new Error('HTTP 502: {"detail":"provider_response_invalid"}'))).toMatch(
+      /provider.*response/i,
+    );
+  });
+});
+
 describe("getErrorMessage", () => {
   it("maps known codes to friendly copy", () => {
     expect(getErrorMessage("invalid_credentials")).toBe("Invalid username or password.");

@@ -128,6 +128,15 @@ The same PNG is available from your running frontend at `/logo.png`.
 
 ## Add an optional setting
 
+MyMiniFactory account connection requires OAuth application credentials on the
+API container: `VAULT_MMF_CLIENT_ID` and `VAULT_MMF_CLIENT_SECRET`. Register
+`https://<your-public-origin>/api/v1/provider-connections/myminifactory/callback`
+as the OAuth callback URL with MyMiniFactory, using the exact scheme and host
+through which users open PrintStash. Restart the API after setting both values.
+Without them, the connection endpoint returns `provider_not_configured` and
+cannot start authorization. Cults uses the credentials entered by each user
+and does not use these MyMiniFactory settings.
+
 Add API settings under `services.api.environment` in your downloaded file.
 Keep `VAULT_RESTART_ENABLED: "true"`, which lets Settings restart the supervised
 API. For example, to retain remembered logins for seven days:

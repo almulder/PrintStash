@@ -48,6 +48,8 @@
 
 ### Fixed
 
+- Provider connection errors now distinguish missing MyMiniFactory OAuth setup,
+  rejected Cults credentials, provider outages, and invalid provider responses.
 - Routine HTTP client requests no longer fill INFO logs during PrusaLink polling;
   printer errors and transport warnings remain visible.
 
