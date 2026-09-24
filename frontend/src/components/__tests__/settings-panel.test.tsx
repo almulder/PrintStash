@@ -149,7 +149,7 @@ function renderSettings(options: RenderAppOptions = {}) {
       "GET /api/v1/notifications/deliveries": json([]),
       "GET /api/v1/auth/oidc": json({ enabled: false }),
       "GET /api/v1/spoolman/status": json({ enabled: false, url: null, reachable: false }),
-      "GET /api/v1/maintenance/audits/latest": json(null),
+      "GET /api/v1/maintenance/audits": json([]),
       "GET /api/v1/models/trash": json([]),
       "GET /api/v1/admin/gc": json(null),
       "GET /api/v1/backups": json([]),
@@ -796,6 +796,11 @@ describe("SettingsPanel", () => {
         await screen.findByRole("button", { name: "Move storage with a verified migration" }),
       ).toBeVisible();
       expect(screen.queryByRole("button", { name: /Backup now/ })).toBeNull();
+      const move = screen.getByRole("region", { name: "Move Vault storage" });
+      const insights = screen.getByRole("heading", { name: "Storage insights" });
+      expect(
+        insights.compareDocumentPosition(move) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     });
 
     it("opens backup controls in their own section", async () => {
@@ -1400,6 +1405,12 @@ describe("SettingsPanel", () => {
 
       expect(await screen.findByText("Superuser access is required.")).toBeInTheDocument();
     });
+  });
+
+  it("keeps model matching out of maintenance", async () => {
+    renderSettings({ at: "/settings?section=maintenance" });
+    expect(await screen.findByRole("button", { name: "Quick Audit" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Similar models" })).toBeNull();
   });
 
   describe("trash retention", () => {

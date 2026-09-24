@@ -407,7 +407,7 @@ function ModelCardInner({
             <div className="flex flex-wrap gap-1.5 min-w-0">
               {model.collection && (
                 <span className="px-2 py-0.5 bg-muted border border-border rounded text-xs font-mono font-semibold text-muted-foreground uppercase tracking-tight">
-                  {model.collection}
+                  {model.collection.split("/").at(-1)}
                 </span>
               )}
               {ps?.slicer_name && (

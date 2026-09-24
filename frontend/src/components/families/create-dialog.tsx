@@ -92,10 +92,10 @@ export function CreateFamilyDialog({
             autoFocus
           />
         </div>
-        <fieldset disabled={busy} className="space-y-3">
+        <fieldset disabled={busy} className="min-w-0 space-y-3">
           <FamilyModelPicker selected={selected} onToggle={toggle} />
           {selected.size > 0 && (
-            <fieldset className="space-y-2">
+            <fieldset className="min-w-0 space-y-2">
               <legend className="text-sm font-medium">
                 {t("families.chooseCanonical", { count: selected.size })}
               </legend>
