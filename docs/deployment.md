@@ -100,7 +100,10 @@ as private even for public repositories; see
 
 ### Unraid, CasaOS and other container dashboards
 
-Add the published image as a custom container with these settings:
+For Unraid, use the [single-container template](../templates/printstash-api.xml)
+and its [installation and migration guide](../unraid/README.md). On other
+container dashboards, add the published image as a custom container with these
+settings:
 
 | Setting | Value |
 | --- | --- |
@@ -122,8 +125,9 @@ command at their defaults so ownership setup and migrations run before startup.
 
 Open `http://<server-ip>:<host-port>` on a trusted network and complete the initial
 administrator registration. The frontend proxies the API internally, so only
-port `3000` needs publishing. These are custom-container settings; this change
-does not publish an Unraid Community Apps or CasaOS app-store listing.
+port `3000` needs publishing. The Unraid template supplies these settings
+through one container. Other dashboards can use the custom-container settings
+above.
 The same PNG is available from your running frontend at `/logo.png`.
 
 ## Add an optional setting
