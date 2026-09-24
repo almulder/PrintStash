@@ -25,7 +25,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "0.13.0",
     date: "Sep 2026",
     changes: [
-      "Browser captures now accept multi-file selections within the active-review limit, release unfinished upload slots after transfer failures, and explain staging capacity errors",
       "Multipart Models now group reusable Models into named pieces and alternatives with independent tags, covers, favorites, and PDF, Markdown, or image guides without moving or deleting the underlying files",
       "Remote Library sources can index S3-compatible, WebDAV, SFTP, and Google Drive storage through bounded resumable scans while preserving source ownership and preventing Vault cleanup from deleting user-owned bytes",
       "Storage now reports Verified, Guarded, or Unguarded capability tiers and requires durable ownership evidence, explicit approval, quarantine, and final revalidation before destructive garbage collection",

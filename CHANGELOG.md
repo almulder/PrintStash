@@ -45,6 +45,9 @@
 
 ### Fixed
 
+- Browser captures accept multi-file selections within the review limit, release
+  unfinished upload slots after transfer failures, and explain capacity errors.
+
 - AI Search mutations enforce token write scope, including caption edits, settings,
   generation management, local model operations and personal preferences.
 
