@@ -244,6 +244,25 @@ describe("ModelBrowser", () => {
       expect(screen.getByRole("button", { name: "Create Family" })).toBeVisible();
       expect(screen.getByRole("button", { name: "New multipart set" })).toBeVisible();
     });
+    it("keeps multipart creation separate from Family browsing", async () => {
+      const user = userEvent.setup();
+      renderVault({
+        at: "/?type=all&browse=families_collapsed",
+        routes: { "GET /api/v1/families/browse": json({ items: [], total: 0 }) },
+      });
+      await screen.findByRole("button", { name: "All Models" });
+      expect(screen.queryByRole("button", { name: "Create Family" })).toBeNull();
+      await user.click(screen.getByRole("button", { name: "New multipart set" }));
+      expect(screen.getByRole("dialog", { name: "New multipart set" })).toBeVisible();
+    });
+    it("opens multipart creation from the mobile More menu", async () => {
+      const user = userEvent.setup();
+      renderVault();
+      await screen.findByRole("button", { name: "All Models" });
+      await user.click(screen.getByRole("button", { name: "More" }));
+      await user.click(screen.getByRole("menuitem", { name: "New multipart set" }));
+      expect(screen.getByRole("dialog", { name: "New multipart set" })).toBeVisible();
+    });
     it("can collapse the tools after opening them", async () => {
       renderVault();
       await openLibraryTools();

@@ -86,7 +86,7 @@ describe("Family membership dialogs", () => {
     );
     await user.click(await screen.findByRole("checkbox", { name: "Select Repaired boat" }));
     await user.selectOptions(screen.getByLabelText("Variation of Repaired boat"), "repaired");
-    await user.click(screen.getByRole("button", { name: "Add member" }));
+    await user.click(screen.getByRole("button", { name: "Add variation" }));
     await waitFor(() => expect(requestsWithMethod("POST")).toHaveLength(1));
     expect(JSON.parse(requestsWithMethod("POST")[0].body)).toEqual({
       model_id: 4,
@@ -151,7 +151,7 @@ describe("Family membership dialogs", () => {
       },
     );
     await user.selectOptions(screen.getByLabelText("Previous canonical becomes"), "print_variant");
-    await user.click(screen.getByRole("button", { name: "Make canonical" }));
+    await user.click(screen.getByRole("button", { name: "Make main Model" }));
     await waitFor(() => expect(requestsWithMethod("POST")).toHaveLength(1));
     expect(JSON.parse(requestsWithMethod("POST")[0].body)).toEqual({
       member_id: 12,
