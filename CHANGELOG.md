@@ -127,6 +127,10 @@ image. See UPGRADE.md before pulling.**
 - Browser Back now returns through the Vault's collection navigation before leaving for an earlier page.
 - Model cards show the collection name in their badge instead of its full hierarchy path.
 - Long collection paths no longer push the Create Family model picker beyond the dialog edge.
+- "Or select a folder" in the Bulk upload tab opens the folder picker again. The
+  hidden inputs sat inside the clickable drop zone, so the folder input's click
+  bubbled to the zone and the file picker opened on top of it; only drag-and-drop
+  could queue a folder.
 
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
