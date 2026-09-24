@@ -18,7 +18,7 @@ const externalRoot = process.env.PLAYWRIGHT_EXTERNAL_LIBRARY_ROOT;
 const markerName = ".printstash-external-root.json";
 
 test.describe("mounted library source root recovery", () => {
-  test("renders and downloads a scanned mounted STL without a storage connection", async ({
+  test("serves a scanned mounted STL in the browser without a storage connection", async ({
     page,
   }) => {
     if (!externalRoot) {
