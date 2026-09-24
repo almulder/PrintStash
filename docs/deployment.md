@@ -166,22 +166,35 @@ deliberately when upgrading.
 
 ## Data and host folders
 
-The default `docker-compose.yml` persists all application state in named Docker volumes:
+PrintStash keeps everything under one directory in the container, `/data`, and
+the default `docker-compose.yml` mounts one named volume, `printstash`, there:
 
-| Volume | Container path | Contents |
-| --- | --- | --- |
-| `printstash_data` | `/data/files` | Uploaded files |
-| `printstash_thumbs` | `/data/thumbs` | Thumbnails |
-| `printstash_db` | `/data/db` | SQLite database and generated credentials key |
-| `printstash_staging` | `/data/staging` | Pending uploads and imports |
-| `printstash_backups` | `/data/backups` | Local backup archives |
+| Container path | Contents |
+| --- | --- |
+| `/data/db` | SQLite database and generated credentials key |
+| `/data/files` | Uploaded files: the library |
+| `/data/thumbs` | Thumbnails |
+| `/data/staging` | Uploads and imports in progress |
+| `/data/backups` | Local backup archives |
+| `/data/artifact-cache` | Optional local cache for remote storage |
+| `/data/ai-models` | Downloaded AI search models |
 
-Docker prefixes these names with the Compose project name, normally the directory
-name. Keep that directory/project name when updating so the app finds its data.
-`docker compose down` preserves volumes; **`docker compose down -v` deletes them**.
+**Keep `/data` one mount.** An import is assembled in `/data/staging` and then
+published into `/data/files` by hard link: the staged file becomes the library
+file at once, whatever its size, and never exists on disk twice. Linux can only
+hard-link within one mount, even when two mounts sit on the same disk, so a
+layout that puts staging and files on separate mounts makes every import copy
+its bytes instead. PrintStash still works that way, but it logs a warning at
+startup ("imports copy every staged file") and reports
+`storage_probe_diagnostics.staged_hardlink: false` in `GET /api/v1/config`.
 
-For host folders, replace the service's `volumes` list with bind mounts and add
-the host owner's numeric IDs to its existing `environment` mapping:
+Docker prefixes the volume name with the Compose project name, normally the
+directory name. Keep that directory/project name when updating so the app finds
+its data. `docker compose down` preserves volumes; **`docker compose down -v`
+deletes them**.
+
+For a host folder, replace the volume with one bind mount and add the host
+owner's numeric IDs to the existing `environment` mapping:
 
 ```yaml
 services:
@@ -191,17 +204,38 @@ services:
       PUID: "1000"
       PGID: "1000"
     volumes:
-      - ./data/files:/data/files
-      - ./data/thumbs:/data/thumbs
-      - ./data/db:/data/db
-      - ./data/staging:/data/staging
-      - ./data/backups:/data/backups
+      - ./data:/data
 ```
 
 Use `id -u` and `id -g` on the host to find the intended owner. Both IDs must be
 positive; omitted IDs default to `10001:10001`. The entrypoint repairs ownership
-before running migrations as the unprivileged user. Replacing named volumes with
-empty host folders does not move existing data: back up and migrate it first.
+before running migrations as the unprivileged user. Replacing the named volume
+with an empty host folder does not move existing data: back up and migrate it
+first.
+
+### Moving one directory to another disk
+
+Every path above is a child of `VAULT_DATA_ROOT`, and each can be moved on its
+own, for example library files onto a large HDD while the database stays on an
+SSD. Mount the other disk inside the container and point the matching variable
+at it; `docker-compose.advanced.yml` shows each one, commented out.
+
+| Variable | Default |
+| --- | --- |
+| `VAULT_DATA_ROOT` | `/data`. The parent of every path below; leave it alone in the container. |
+| `VAULT_DATA_DIR` | `/data/files` |
+| `VAULT_THUMB_DIR` | `/data/thumbs` |
+| `VAULT_STAGING_DIR` | `/data/staging` |
+| `VAULT_BACKUP_DIR` | `/data/backups` |
+| `VAULT_ARTIFACT_CACHE_ROOT` | `/data/artifact-cache` |
+| `VAULT_EMBEDDING_CACHE_DIR` | `/data/ai-models` |
+| `VAULT_DB_URL` | `sqlite:////data/db/printstash.sqlite`, or a PostgreSQL URL |
+| `VAULT_SECRETS_KEY_FILE` | `/data/db/.printstash-secrets-key` |
+
+An empty value means the default. Moving `VAULT_DATA_DIR` without
+`VAULT_STAGING_DIR` puts them on different mounts and turns every import into a
+copy, so move both together. Mounting a second volume *at* `/data/files`
+instead of setting a variable splits the mount the same way.
 
 To index an existing library folder, add a mount such as
 `/path/to/library:/library:ro` to the service's existing volume list, then add
@@ -282,10 +316,9 @@ on the API for your provider:
 | `VAULT_BACKUP_RETENTION_DAYS` | `30` | Local backup retention in days. |
 | `VAULT_RESTART_ENABLED` | `true` in Compose | Enables supervised restart from Settings; the app default outside Compose is `false`. |
 
-Storage paths already match the persistent mounts. Leave `VAULT_DATA_DIR`,
-`VAULT_THUMB_DIR`, `VAULT_DB_URL`, `VAULT_STAGING_DIR`, and `VAULT_BACKUP_DIR` at
-their defaults unless you also adjust the mounts. A database path outside the
-persistent volume can lose state on container replacement.
+Storage paths all default under the `/data` volume; see
+[Data and host folders](#data-and-host-folders) before moving one. A database
+path outside a persistent mount loses state on container replacement.
 
 For remote storage, see [Storage providers](./storage-providers.md).
 The full image includes the optional storage dependencies. PostgreSQL/S3 services
@@ -357,8 +390,8 @@ it as `docker-compose.yml` in its own install directory. To build from a checkou
 instead of pulling images, uncomment its two `build:` blocks and add `--build`.
 
 Existing installations keep their data when switching between
-`docker-compose.yml` and `docker-compose.advanced.yml`: both use the same five
-local volume keys. Back up first, stop the old stack without removing volumes,
+`docker-compose.yml` and `docker-compose.advanced.yml`: both mount the same
+`printstash` volume at `/data`. Back up first, stop the old stack without removing volumes,
 keep the same Compose project name, and carry over custom settings and mounts.
 Do not run two stacks against the same data. Moving from PostgreSQL or remote
 primary storage requires a separate data migration; switching files is not one.

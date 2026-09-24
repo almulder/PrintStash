@@ -6,9 +6,8 @@ uv = "latest"
 
 [env]
 # Backend
-VAULT_DB_URL = "sqlite:///./dev.sqlite"
-VAULT_DATA_DIR = "./_data/files"
-VAULT_THUMB_DIR = "./_data/thumbs"
+# Every app path (SQLite database included) lives under this one directory.
+VAULT_DATA_ROOT = "./_data"
 VAULT_API_KEY = "devkey"
 VAULT_JWT_SECRET = "dev-jwt-secret"
 VAULT_LOG_LEVEL = "DEBUG"

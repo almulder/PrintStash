@@ -22,7 +22,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.core.config import _overlay
+from app.core.config import _overlay, settings
 from app.db.models import SystemConfig, User
 from app.modules.administration import runtime_config
 from tests.factories import build_user
@@ -153,11 +153,21 @@ class TestSetupStatus:
         assert body["configured"] is False
         assert body["setup_available"] is True
 
-    def test_offers_the_wizard_its_defaults(self, client: TestClient) -> None:
+    @pytest.mark.parametrize("role", ["data", "thumb"])
+    def test_offers_the_deployment_path_as_the_wizard_default(
+        self, client: TestClient, role: str
+    ) -> None:
+        # A runtime edit (the overlay this suite always sets) is not what a
+        # blank field means: the deployment's own VAULT_DATA_ROOT layout is.
         body = client.get("/api/v1/setup/status").json()
 
-        assert body["default_data_dir"]
-        assert body["default_thumb_dir"]
+        assert body[f"default_{role}_dir"] == str(
+            getattr(settings.frozen, f"{role}_dir")
+        )
+
+    def test_reports_the_effective_library_path(self, client: TestClient) -> None:
+        body = client.get("/api/v1/setup/status").json()
+
         assert body["current_data_dir"] == str(_overlay["data_dir"])
 
     def test_closes_setup_for_existing_users(
@@ -216,7 +226,7 @@ class TestCompleteSetup:
         self, client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
-            'app.modules.storage.storage_backend.local.enroll_legacy_local_root',
+            "app.modules.storage.storage_backend.local.enroll_legacy_local_root",
             lambda *args, **kwargs: False,
         )
 
@@ -230,7 +240,7 @@ class TestCompleteSetup:
     ) -> None:
         with monkeypatch.context() as patch:
             patch.setattr(
-                'app.modules.storage.storage_backend.local.enroll_legacy_local_root',
+                "app.modules.storage.storage_backend.local.enroll_legacy_local_root",
                 lambda *args, **kwargs: False,
             )
             _complete(client)
@@ -903,7 +913,8 @@ class TestLibraryLocationDiscovery:
         directory = runtime_dirs / "files"
         directory.mkdir()
         monkeypatch.setattr(
-            "app.modules.sources.library_locations.mounted_directories", lambda: [directory]
+            "app.modules.sources.library_locations.mounted_directories",
+            lambda: [directory],
         )
         assert (
             client.get("/api/v1/libraries/locations", headers=auth_headers).json() == []
@@ -915,7 +926,8 @@ class TestLibraryLocationDiscovery:
         directory = tmp_path / "models-to-connect"
         directory.mkdir()
         monkeypatch.setattr(
-            "app.modules.sources.library_locations.mounted_directories", lambda: [directory]
+            "app.modules.sources.library_locations.mounted_directories",
+            lambda: [directory],
         )
         response = client.get("/api/v1/libraries/locations", headers=auth_headers)
         assert response.json() == [str(directory)]

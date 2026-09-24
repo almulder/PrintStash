@@ -6,7 +6,18 @@
 `docker-compose.advanced.yml`; `docker-compose.yml` now runs the single-container
 image. See UPGRADE.md before pulling.**
 
+**Compose installs: both Compose files now mount one `printstash` volume at
+`/data` instead of five. Copy your data into it before starting the new file
+(one command, in UPGRADE.md), or the app starts empty at first-run setup.**
+
 ### Changed
+
+- **One data volume.** Every path PrintStash writes (database, files,
+  thumbnails, staging, backups, caches) lives under `VAULT_DATA_ROOT`, `/data`
+  in the container, so a deployment mounts one volume. Each directory can still
+  be moved on its own with its existing variable. The artifact cache and
+  downloaded AI search models, previously left in the container's own layer,
+  now persist across updates.
 
 - Nine Compose files became two in the repository root: `docker-compose.yml`
   starts PrintStash as one container (web UI and full API) with no
@@ -18,6 +29,17 @@ image. See UPGRADE.md before pulling.**
 - CI no longer runs the eight per-image Docker build and Grype jobs or the
   legacy MinIO-to-SeaweedFS migration job. Container publishing no longer runs
   Grype scans; release builds and the legacy migration helper remain available.
+
+### Performance
+
+- **Imports no longer copy files into local storage.** A staged upload, URL
+  import, library-transfer archive entry or Bambu print capture
+  becomes its library file by hard link when staging shares the library's
+  mount, which the single `/data` volume guarantees: instant, whatever the file
+  size, with no second copy on disk. Local backups publish their archive the
+  same way when no remote replica needs it. Where a link is impossible (another
+  mount, or a filesystem without hard links) the file is copied as before, and
+  startup logs a warning.
 
 ### Added
 

@@ -6,12 +6,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 cd "$ROOT_DIR/backend"
 
-# Ensure data dirs exist
+# Every app path (SQLite database included) lives under one directory.
 mkdir -p _data/files _data/thumbs
-
-export VAULT_DB_URL=sqlite:///./dev.sqlite
-export VAULT_DATA_DIR=./_data/files
-export VAULT_THUMB_DIR=./_data/thumbs
+export VAULT_DATA_ROOT=./_data
 
 .venv/bin/alembic upgrade head
 
