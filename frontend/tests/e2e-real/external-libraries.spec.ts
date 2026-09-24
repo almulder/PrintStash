@@ -3,12 +3,13 @@
  *
  * Set PLAYWRIGHT_EXTERNAL_LIBRARY_ROOT to an existing directory shared by the
  * browser test process and the backend process. The test removes only the
- * PrintStash marker it created, enrolls the resulting legacy/unbound row, and
- * proves a subsequent upload is written back into that exact root. Without the
- * explicit environment path the suite reports this contract as skipped rather
- * than pretending a local directory is safe to use.
+ * PrintStash marker it created, enrolls the resulting legacy/unbound row,
+ * verifies scanned-file preview/download, and proves a subsequent upload is
+ * written back into that exact root. Without the explicit environment path the
+ * suite reports these contracts as skipped rather than pretending a local
+ * directory is safe to use.
  */
-import { access, rm } from "node:fs/promises";
+import { access, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { test, expect } from "./helpers";
@@ -17,6 +18,99 @@ const externalRoot = process.env.PLAYWRIGHT_EXTERNAL_LIBRARY_ROOT;
 const markerName = ".printstash-external-root.json";
 
 test.describe("mounted library source root recovery", () => {
+  test("renders and downloads a scanned mounted STL without a storage connection", async ({
+    page,
+  }) => {
+    if (!externalRoot) {
+      test.skip(
+        true,
+        "Set PLAYWRIGHT_EXTERNAL_LIBRARY_ROOT to an existing test-owned directory to run this contract.",
+      );
+      return;
+    }
+    const root = externalRoot;
+    const name = `e2e-mounted-preview-${Date.now()}`;
+    const source = path.join(root, `${name}.stl`);
+    const marker = path.join(root, markerName);
+    const original = Buffer.from(
+      [
+        `solid ${name}`,
+        "facet normal 0 0 1",
+        " outer loop",
+        "  vertex 0 0 0",
+        "  vertex 40 0 0",
+        "  vertex 0 25 0",
+        " endloop",
+        "endfacet",
+        `endsolid ${name}`,
+      ].join("\n"),
+    );
+    let libraryId: number | null = null;
+
+    await writeFile(source, original);
+    try {
+      expect(
+        (
+          await page.request.put("/api/v1/config", { data: { external_libraries_enabled: true } })
+        ).ok(),
+      ).toBe(true);
+      const create = await page.request.post("/api/v1/libraries", {
+        data: { name, root_path: root, scan_schedule: "", watch_mode: "off" },
+      });
+      expect(create.status()).toBe(201);
+      const created = await create.json();
+      libraryId = Number(created.id);
+      expect(created.connection_id).toBeNull();
+
+      const scan = await page.request.post(`/api/v1/libraries/${libraryId}/scan`);
+      expect(scan.status()).toBe(202);
+      let modelId = 0;
+      await expect
+        .poll(
+          async () => {
+            const response = await page.request.get(`/api/v1/models?q=${name}`);
+            if (!response.ok()) return false;
+            const models = await response.json();
+            modelId = Number(
+              models.find((model: { name: string }) => model.name === name)?.id ?? 0,
+            );
+            return modelId > 0;
+          },
+          { timeout: 60_000 },
+        )
+        .toBe(true);
+      const detail = await (await page.request.get(`/api/v1/models/${modelId}`)).json();
+      const file = detail.files.find(
+        (item: { original_filename: string }) => item.original_filename === `${name}.stl`,
+      );
+      expect(file).toBeDefined();
+
+      const preview = page.waitForResponse((response) =>
+        response.url().endsWith(`/api/v1/files/${file.id}/stl`),
+      );
+      await page.goto(`/models/${modelId}`);
+      await expect(page.getByRole("heading", { name })).toBeVisible();
+      expect((await preview).status()).toBe(200);
+      await expect(page.getByRole("button", { name: "Screenshot" })).toBeEnabled();
+
+      await page.getByRole("tab", { name: /Files/ }).click();
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        page.getByTitle("Download").first().click(),
+      ]);
+      expect(download.suggestedFilename()).toBe(`${name}.stl`);
+      const chunks: Buffer[] = [];
+      for await (const chunk of (await download.createReadStream())!)
+        chunks.push(Buffer.from(chunk));
+      expect(Buffer.concat(chunks)).toEqual(original);
+    } finally {
+      if (libraryId !== null) await page.request.delete(`/api/v1/libraries/${libraryId}`);
+      await rm(source, { force: true });
+      await rm(marker, { force: true });
+      await page.request.put("/api/v1/config", { data: { external_libraries_enabled: false } });
+    }
+  });
+
   test("enrolls an unbound root before external write-back", async ({ page }) => {
     if (!externalRoot) {
       test.skip(
