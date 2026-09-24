@@ -66,9 +66,12 @@ def _exercise_upgrade(url: str, *, postgres: bool) -> None:
                 )
             )
             session.commit()
-            assert session.exec(
-                select(File).where(File.file_type == FileType.DXF)
-            ).one().original_filename == "drawing.dxf"
+            assert (
+                session.exec(select(File).where(File.file_type == FileType.DXF))
+                .one()
+                .original_filename
+                == "drawing.dxf"
+            )
 
         indexes = {row["name"] for row in inspect(engine).get_indexes("files")}
         assert "uq_files_live_recommended_gcode_text" in indexes
@@ -76,7 +79,8 @@ def _exercise_upgrade(url: str, *, postgres: bool) -> None:
             command.downgrade(config, "-1")
         with Session(engine) as session:
             assert {row.original_filename for row in session.exec(select(File))} == {
-                "existing.stl", "drawing.dxf"
+                "existing.stl",
+                "drawing.dxf",
             }
     finally:
         engine.dispose()
@@ -84,7 +88,9 @@ def _exercise_upgrade(url: str, *, postgres: bool) -> None:
 
 class TestDxfFiletypeMigration:
     def test_sqlite_upgrade_preserves_existing_artifact(self, tmp_path) -> None:
-        _exercise_upgrade(f"sqlite:///{tmp_path / 'dxf-upgrade.sqlite'}", postgres=False)
+        _exercise_upgrade(
+            f"sqlite:///{tmp_path / 'dxf-upgrade.sqlite'}", postgres=False
+        )
 
     @pytest.mark.postgres
     def test_postgres_upgrade_preserves_existing_artifact(self) -> None:

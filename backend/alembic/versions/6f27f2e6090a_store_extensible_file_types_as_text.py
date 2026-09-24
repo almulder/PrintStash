@@ -5,6 +5,7 @@ Revises: a23d2e57ff0c
 Create Date: 2026-09-24 01:15:47.755495
 
 """
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -31,8 +32,14 @@ def upgrade() -> None:
                 "STL", "THREE_MF", "GCODE", "OBJ", "STEP", name="filetype"
             ),
             type_=sa.Enum(
-                "STL", "THREE_MF", "GCODE", "OBJ", "STEP", "DXF",
-                name="filetype", native_enum=False,
+                "STL",
+                "THREE_MF",
+                "GCODE",
+                "OBJ",
+                "STEP",
+                "DXF",
+                name="filetype",
+                native_enum=False,
             ),
             existing_nullable=False,
             postgresql_using="file_type::text",
@@ -54,9 +61,11 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Old application versions cannot decode DXF. Refuse to roll back rather
     # than hiding or dropping user-owned originals.
-    if op.get_bind().execute(
-        sa.text("SELECT 1 FROM files WHERE file_type = 'DXF' LIMIT 1")
-    ).first():
+    if (
+        op.get_bind()
+        .execute(sa.text("SELECT 1 FROM files WHERE file_type = 'DXF' LIMIT 1"))
+        .first()
+    ):
         raise RuntimeError("remove or export DXF Artifacts before downgrading")
     with op.batch_alter_table("files") as batch_op:
         batch_op.drop_index("uq_files_live_recommended_gcode_text")
@@ -65,8 +74,14 @@ def downgrade() -> None:
             "files",
             "file_type",
             existing_type=sa.Enum(
-                "STL", "THREE_MF", "GCODE", "OBJ", "STEP", "DXF",
-                name="filetype", native_enum=False,
+                "STL",
+                "THREE_MF",
+                "GCODE",
+                "OBJ",
+                "STEP",
+                "DXF",
+                name="filetype",
+                native_enum=False,
             ),
             type_=postgresql.ENUM(
                 "STL", "THREE_MF", "GCODE", "OBJ", "STEP", name="filetype"

@@ -116,7 +116,9 @@ class File(SQLModel, table=True):
     # column. PostgreSQL's native enum cannot accept a new label through
     # Alembic autogenerate, while SQLAlchemy still returns FileType values.
     file_type: FileType = Field(
-        sa_column=Column(SAEnum(FileType, native_enum=False), nullable=False, index=True)
+        sa_column=Column(
+            SAEnum(FileType, native_enum=False), nullable=False, index=True
+        )
     )
     version: int = Field(default=1)
     size_bytes: int
