@@ -226,6 +226,34 @@ test.describe("uploads", () => {
     expect(thumbnailResponses.length).toBeGreaterThanOrEqual(3);
   });
 
+  test("bulk DXF upload reaches a downloadable source without a drawing preview", async ({
+    page,
+  }) => {
+    const name = `e2e-dxf-${Date.now()}`;
+    await page.goto("/");
+    await page.getByRole("button", { name: "Upload", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Upload model" });
+    await dialog.getByRole("button", { name: "Bulk", exact: true }).click();
+    await dialog.locator('input[type="file"][accept*=".dxf"]').setInputFiles({
+      name: `${name}.dxf`,
+      mimeType: "image/vnd.dxf",
+      buffer: Buffer.from("0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n"),
+    });
+    await dialog.getByRole("button", { name: "Upload 1 model" }).click();
+    await expect(dialog).toHaveCount(0);
+    await page.getByRole("button", { name: "Notifications" }).click();
+    const task = page.getByText(`Upload ${name}.dxf`, { exact: true }).locator("..");
+    await expect(task.getByText("completed", { exact: true })).toBeVisible({ timeout: 120_000 });
+
+    await page.goto("/");
+    await modelCard(page, name).click();
+    await expect(
+      page.getByText("DXF preview is not supported yet.", { exact: false }),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: /Files/ }).click();
+    await expect(page.getByText(`${name}.dxf`)).toBeVisible();
+  });
+
   test("@critical upload into a chosen collection", async ({ page }) => {
     const col = `e2e-upcol-${Date.now()}`;
     const name = `e2e-upmodel-${Date.now()}`;

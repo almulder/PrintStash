@@ -25,6 +25,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "0.13.0",
     date: "Sep 2026",
     changes: [
+      "DXF source files can now be imported, backed up, restored, and downloaded in their original form; drawing previews are not yet available",
       "Multipart Models now group reusable Models into named pieces and alternatives with independent tags, covers, favorites, and PDF, Markdown, or image guides without moving or deleting the underlying files",
       "Remote Library sources can index S3-compatible, WebDAV, SFTP, and Google Drive storage through bounded resumable scans while preserving source ownership and preventing Vault cleanup from deleting user-owned bytes",
       "Storage now reports Verified, Guarded, or Unguarded capability tiers and requires durable ownership evidence, explicit approval, quarantine, and final revalidation before destructive garbage collection",

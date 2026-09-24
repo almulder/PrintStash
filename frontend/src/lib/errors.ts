@@ -124,7 +124,7 @@ const ERROR_MESSAGES = {
   // URL import
   url_required: "Enter a URL to import from.",
   url_not_a_direct_file:
-    "That link isn't a direct file. Paste a direct .stl/.3mf/.obj/.gcode or .zip download link.",
+    "That link isn't a direct file. Paste a direct .stl/.3mf/.obj/.dxf/.gcode or .zip download link.",
   url_scheme_not_allowed: "Only http(s) URLs can be imported.",
   url_host_missing: "That URL has no host.",
   url_dns_resolution_failed: "Couldn't resolve that host.",

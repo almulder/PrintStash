@@ -51,7 +51,7 @@ export function FilesTab({
         </h2>
         {sourceFiles.length === 0 && (
           <p className="font-mono text-xs text-on-surface-variant">
-            {uiText("No source files (STL / 3MF / OBJ) for this model.")}
+            {uiText("No source files for this model.")}
           </p>
         )}
         <div className="space-y-2">

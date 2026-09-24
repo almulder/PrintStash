@@ -1564,7 +1564,7 @@
           },
           "file": {
             "contentMediaType": "application/octet-stream",
-            "description": "The .stl, .3mf, or .obj file",
+            "description": "A .stl, .3mf, .obj, .step, .stp, or .dxf file",
             "title": "File",
             "type": "string"
           },
@@ -6161,7 +6161,8 @@
           "3mf",
           "gcode",
           "obj",
-          "step"
+          "step",
+          "dxf"
         ],
         "title": "FileType",
         "type": "string"
@@ -29754,7 +29755,7 @@
     },
     "/api/v1/ingest/model": {
       "post": {
-        "description": "Multipart upload of a source mesh. The file is staged and processed asynchronously: hashed, geometry extracted via trimesh (bounding box, volume, triangle count), a PNG thumbnail rendered, deduplicated, and persisted. Returns a job_id you can poll via GET /ingest/jobs/{job_id}.",
+        "description": "Multipart upload of a source file. The file is staged and processed asynchronously: hashed, geometry and thumbnail extracted where supported, deduplicated, and persisted. Returns a job_id you can poll via GET /ingest/jobs/{job_id}.",
         "operationId": "ingest_model_api_v1_ingest_model_post",
         "requestBody": {
           "content": {
@@ -29793,7 +29794,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Ingest a source mesh file (STL, 3MF, OBJ)",
+        "summary": "Ingest a source file (STL, 3MF, OBJ, STEP, DXF)",
         "tags": [
           "ingest"
         ]
