@@ -379,7 +379,6 @@ def _repair_mirrored_collection_names(
     deliberate move to a different folder remains the user's choice.
     """
     collections = session.exec(select(Collection)).all()
-    by_path = {collection.path: collection for collection in collections}
     by_id = {collection.id: collection for collection in collections}
 
     def names_for(collection: Collection) -> tuple[str, ...]:
@@ -393,35 +392,36 @@ def _repair_mirrored_collection_names(
             current = by_id.get(current.parent_id)
         return tuple(reversed(names))
 
-    candidate_dirs: set[str] = set()
-    for path in disk_paths:
-        relative = Path(path).parent.relative_to(root)
-        if relative == Path("."):
-            continue
-        slug_path = "/".join(slugify(part) for part in relative.parts)
-        existing = by_path.get(slug_path)
-        if existing is not None and names_for(existing) != relative.parts:
-            candidate_dirs.add(relative.as_posix())
-    if not candidate_dirs:
-        return
-
     model_dirs: dict[int, set[str]] = {}
     for path, file_row in indexed.items():
         if path in disk_paths:
             relative = Path(path).parent.relative_to(root).as_posix()
             model_dirs.setdefault(file_row.model_id, set()).add(relative)
 
+    model_collections: dict[int, int | None] = {}
+    model_ids = list(model_dirs)
+    for start in range(0, len(model_ids), 500):
+        model_collections.update(
+            session.exec(
+                select(Model.id, Model.collection_id).where(
+                    Model.id.in_(model_ids[start : start + 500])
+                )
+            ).all()
+        )
+
+    checked_models: set[int] = set()
     for path, file_row in indexed.items():
         if path not in disk_paths:
             continue
-        relative = Path(path).parent.relative_to(root)
-        if relative.as_posix() not in candidate_dirs:
+        if file_row.model_id in checked_models:
             continue
+        checked_models.add(file_row.model_id)
+        relative = Path(path).parent.relative_to(root)
         if len(model_dirs.get(file_row.model_id, ())) != 1:
             continue
-        model = session.get(Model, file_row.model_id)
-        collection = session.get(Collection, model.collection_id) if model else None
-        if model is None or collection is None:
+        collection_id = model_collections.get(file_row.model_id)
+        collection = by_id.get(collection_id)
+        if collection is None:
             continue
         current_names = names_for(collection)
         if current_names == relative.parts or tuple(
@@ -431,7 +431,10 @@ def _repair_mirrored_collection_names(
         target = taxonomy.resolve_or_create_mirrored_collection(
             session, relative.as_posix()
         )
-        if target is not None and target.id != model.collection_id:
+        if target is not None and target.id != collection_id:
+            model = session.get(Model, file_row.model_id)
+            if model is None:
+                continue
             model.collection_id = target.id
             session.add(model)
             content_changed(session, "model", [model.id])

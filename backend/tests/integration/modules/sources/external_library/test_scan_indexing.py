@@ -52,8 +52,11 @@ class TestScanLibrary:
         enable_feature(db_session)
         nas = tmp_path / "nas"
         drop_gcode(nas / "Testing", "upper.gcode", marker="upper")
-        drop_gcode(nas / "testing", "lower.gcode", marker="lower")
         lib = build_external_library(db_session, nas, name="nas")
+        external_library.scan_library(lib.id)
+        # Make Testing own the canonical slug before the colliding folder exists.
+        # The old repair only checked that path and missed the lower-case file.
+        drop_gcode(nas / "testing", "lower.gcode", marker="lower")
         external_library.scan_library(lib.id)
         upper = db_session.exec(
             select(File).where(File.original_filename == "upper.gcode")
