@@ -70,8 +70,10 @@ and changelog instead of reconstructing their contents.
      backend change, `./scripts/test.sh full -q`,
      `uv run ruff check app/ tests/`, and `uv run pyright` when feasible.
    - Frontend: `cd frontend && pnpm format:check && pnpm lint && pnpm typecheck`;
-     add `pnpm test` for logic and the applicable Playwright suite for a
-     headline UI flow.
+     run the affected Vitest files for logic and the applicable Playwright spec
+     for a headline UI flow. A localized UI change does not call for the full
+     frontend test or coverage suite; follow
+     [references/running-tests.md](references/running-tests.md) to choose scope.
    - Browser extension: use [references/capture.md](references/capture.md).
    PostgreSQL-affecting changes also run the supported-server contract suite.
    Report only checks actually run and preserve failure output.
