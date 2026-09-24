@@ -118,8 +118,6 @@ a real SeaweedFS that the suite starts as containers, so Docker must be running.
   byte verification, trash, rejected unconfirmed purge, then the explicit confirmed
   outcome. Assert remote absence only when the provider proved and used safe atomic
   quarantine; otherwise assert `blocked` with the exact bytes retained.
-- Run `./scripts/test_minio_migration.sh`; it verifies normal, Unicode, and
-  multipart objects twice with downloaded-content comparison.
 - Run the read-only LibrarySource contracts in the same provider containers:
   native S3 continuation-token pages against SeaweedFS, bounded directory
   cursor traversal against Nextcloud WebDAV and OpenSSH SFTP, stable
@@ -189,10 +187,10 @@ The publish workflows build both images for `linux/amd64` and `linux/arm64`.
 The lite image must be at least 700 MiB smaller than full and may not start more
 than 10% slower at the median.
 
-CI also builds a loadable full ARM64 API image and tessellates the checked-in
-valid STEP fixture under QEMU. Record native Raspberry Pi/ARM hardware and 1 GB
-measurements separately; the emulated smoke proves wheel/import/runtime wiring,
-not real-device performance.
+For ARM64 runtime validation, load the full API image on an ARM64 host and
+tessellate `backend/tests/fixtures/cascadio_material.stp` before release. Record
+native Raspberry Pi/ARM hardware and 1 GB measurements separately; the fixture
+smoke checks wheel/import/runtime wiring, not real-device performance.
 
 Current intentional lint warnings:
 
