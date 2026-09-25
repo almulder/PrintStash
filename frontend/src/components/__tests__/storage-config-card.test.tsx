@@ -215,7 +215,7 @@ describe("StorageConfigCard", () => {
     renderCard({ routes: { "GET /api/v1/config": () => pending } });
 
     expect(screen.getByRole("status", { name: "Current storage" })).toBeVisible();
-    finish(json(aConfig()));
+    finish(json(aVaultConfig()));
     expect(await screen.findByDisplayValue("/data/files")).toBeVisible();
     expect(screen.queryByRole("status", { name: "Current storage" })).toBeNull();
   });
@@ -577,7 +577,7 @@ describe("Configured Vault migration entry", () => {
   it("shows configured local paths when the provider has no path overrides", async () => {
     renderCard({
       migrationManaged: true,
-      config: aConfig({ storage_provider_config: { provider: "local" } }),
+      config: aVaultConfig({ storage_provider_config: { provider: "local" } }),
     });
     const details = await screen.findByRole("region", { name: "Storage connection details" });
     expect(within(details).getByText("/data/files")).toBeVisible();
