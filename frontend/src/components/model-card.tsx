@@ -183,6 +183,7 @@ function MetricCell({
 
 function ModelCardInner({
   model,
+  collectionLabel,
   metrics,
   selectable = false,
   selected = false,
@@ -191,6 +192,7 @@ function ModelCardInner({
   onEditTags,
 }: {
   model: ModelListItem;
+  collectionLabel?: string | null;
   metrics: CardMetrics;
   selectable?: boolean;
   selected?: boolean;
@@ -363,7 +365,7 @@ function ModelCardInner({
           <div className="px-3 pt-3 pb-1 flex items-start justify-between gap-2">
             <h2
               title={model.name}
-              className="text-sm font-bold text-foreground uppercase tracking-tight line-clamp-2 leading-tight"
+              className="text-sm font-bold text-foreground tracking-tight line-clamp-2 leading-tight"
             >
               {model.name}
             </h2>
@@ -400,9 +402,12 @@ function ModelCardInner({
           {/* Footer chips */}
           <div className="px-3 pb-3 mt-auto flex items-end justify-between gap-2 border-t border-border pt-2">
             <div className="flex flex-wrap gap-1.5 min-w-0">
-              {model.collection && (
-                <span className="px-2 py-0.5 bg-muted border border-border rounded text-xs font-mono font-semibold text-muted-foreground uppercase tracking-tight">
-                  {model.collection.split("/").at(-1)}
+              {collectionLabel && (
+                <span
+                  title={collectionLabel}
+                  className="px-2 py-0.5 bg-muted border border-border rounded text-xs font-mono font-semibold text-muted-foreground tracking-tight"
+                >
+                  {collectionLabel.split("/").at(-1)}
                 </span>
               )}
               {ps?.slicer_name && (
@@ -421,7 +426,7 @@ function ModelCardInner({
               {model.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 bg-accent border border-primary-soft rounded text-xs font-mono font-semibold text-accent-foreground uppercase tracking-tight"
+                  className="px-2 py-0.5 bg-accent border border-primary-soft rounded text-xs font-mono font-semibold text-accent-foreground tracking-tight"
                 >
                   {tag}
                 </span>
@@ -446,6 +451,7 @@ const ModelCardMemo = memo(ModelCardInner);
 
 export function ModelCard({
   model,
+  collectionLabel,
   selectable,
   selected,
   onToggleSelect,
@@ -453,6 +459,7 @@ export function ModelCard({
   onEditTags,
 }: {
   model: ModelListItem;
+  collectionLabel?: string | null;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: number, range?: boolean) => void;
@@ -477,6 +484,7 @@ export function ModelCard({
     <Localized>
       <ModelCardMemo
         model={model}
+        collectionLabel={collectionLabel}
         metrics={metrics}
         selectable={selectable}
         selected={selected}

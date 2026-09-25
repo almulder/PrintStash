@@ -502,6 +502,12 @@ describe("FilterSidebar", () => {
   });
 
   describe("filtering by tag", () => {
+    it("keeps tag names in their original case", () => {
+      renderSidebar({ tags: [aTag({ name: "Mixed Case" })] });
+
+      expect(screen.getByRole("button", { name: /Mixed Case/ })).not.toHaveClass("uppercase");
+    });
+
     it("includes multipart sets in shared tag counts", () => {
       renderSidebar({
         tags: [aTag({ model_count: 3, multipart_model_count: 2 })],

@@ -73,6 +73,9 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- Mounted Library source folders keep their exact capitalization and spaces in
+  collection labels and write-back destinations. Case- or punctuation-distinct
+  folders remain separate, including on rescan of previously indexed sources.
 - Double-clicking a collection in the library sidebar keeps that collection open
   instead of returning to All Models.
 - Long nested collection paths stay within the upload dialog's collection selector.

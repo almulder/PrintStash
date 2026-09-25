@@ -7,6 +7,7 @@ import { GettingStartedReminder } from "@/components/getting-started-reminder";
 import { knownUiText, uiText, type MessageKey } from "@/lib/locale";
 import { getErrorMessage } from "@/lib/errors";
 import { filterValueText } from "@/lib/filter-labels";
+import { collectionDisplayPath } from "@/lib/collection-display";
 
 import { useUiLocale } from "@/lib/i18n";
 
@@ -1289,7 +1290,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
         succeeded += 1;
       } catch {
         failed += 1;
-        failedFolders.push(collection.path);
+        failedFolders.push(collectionDisplayPath(collections, collection.path) ?? collection.name);
       }
     }
     if (succeeded) toast.success(uiText(success, { count: succeeded }));
@@ -1333,7 +1334,13 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           movedCollections.push(collection);
         } catch {
           failed += 1;
-          failureDetails.push(uiText("Folder: {value1}", { value1: String(collection.path) }));
+          failureDetails.push(
+            uiText("Folder: {value1}", {
+              value1: String(
+                collectionDisplayPath(collections, collection.path) ?? collection.name,
+              ),
+            }),
+          );
         }
       }
       if (succeeded)
@@ -1392,7 +1399,13 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           succeeded += 1;
         } catch {
           failed += 1;
-          failureDetails.push(uiText("Folder: {value1}", { value1: String(collection.path) }));
+          failureDetails.push(
+            uiText("Folder: {value1}", {
+              value1: String(
+                collectionDisplayPath(collections, collection.path) ?? collection.name,
+              ),
+            }),
+          );
         }
       }
       if (deletedModelIds.length)
@@ -1948,7 +1961,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                     className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-xs transition-colors hover:bg-popover-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{path}</span>
+                    <span className="truncate">{collectionDisplayPath(collections, path)}</span>
                   </button>
                 ))}
                 <button
@@ -2615,6 +2628,10 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                         <MultipartModelCard
                           key={`multipart-${item.value.id}`}
                           item={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           returnTo={currentLibraryHref}
                           availableTags={tags}
                           onDataChange={refresh}
@@ -2623,6 +2640,10 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                         <ModelCard
                           key={item.value.id}
                           model={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           selectable={selectMode}
                           selected={selectedIds.has(item.value.id)}
                           onToggleSelect={toggleSelect}
@@ -2650,6 +2671,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                       <CollectionListRow
                         key={collection.id}
                         collection={collection}
+                        displayPath={collectionDisplayPath(collections, collection.path)}
                         onSelect={handleCollectionChange}
                         onDropModel={canUploadToVault ? handleMoveModel : undefined}
                         selectable={selectMode}
@@ -2662,12 +2684,20 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                         <MultipartModelListRow
                           key={`multipart-${item.value.id}`}
                           item={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           returnTo={currentLibraryHref}
                         />
                       ) : (
                         <ModelListRow
                           key={item.value.id}
                           model={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           selectable={selectMode}
                           selected={selectedIds.has(item.value.id)}
                           onToggleSelect={toggleSelect}
@@ -2816,6 +2846,7 @@ function CollectionFolderCard({
 
 function CollectionListRow({
   collection,
+  displayPath,
   onSelect,
   onDropModel,
   selectable,
@@ -2823,6 +2854,7 @@ function CollectionListRow({
   onToggleSelect,
 }: {
   collection: CollectionRead;
+  displayPath: string | null;
   onSelect: (path: string) => void;
   onDropModel?: (modelId: number, path: string) => void;
   selectable?: boolean;
@@ -2870,7 +2902,7 @@ function CollectionListRow({
             {collection.name}
           </span>
           <span className="block font-mono text-3xs text-muted-foreground truncate">
-            {collection.path}
+            {displayPath}
           </span>
         </span>
         <span className="w-24 text-right text-xs font-mono text-muted-foreground truncate hidden sm:block">
@@ -2890,9 +2922,11 @@ function CollectionListRow({
 
 function MultipartModelListRow({
   item,
+  collectionLabel,
   returnTo,
 }: {
   item: MultipartModelListItem;
+  collectionLabel: string | null;
   returnTo: string;
 }) {
   useUiLocale();
@@ -2918,7 +2952,7 @@ function MultipartModelListRow({
         </span>
       </span>
       <span className="hidden w-24 truncate text-right font-mono text-xs text-muted-foreground sm:block">
-        {item.collection || "—"}
+        {collectionLabel || "—"}
       </span>
       <span className="w-20 text-right font-mono text-xs text-muted-foreground">
         {item.model_count}
@@ -2932,12 +2966,14 @@ function MultipartModelListRow({
 
 function ModelListRow({
   model,
+  collectionLabel,
   selectable = false,
   selected = false,
   onToggleSelect,
   draggable = false,
 }: {
   model: ModelListItem;
+  collectionLabel: string | null;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: number, range?: boolean) => void;
@@ -2999,7 +3035,7 @@ function ModelListRow({
               {model.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag}
-                  className="bg-accent text-accent-foreground px-1 py-px rounded font-mono text-3xs uppercase tracking-wider"
+                  className="bg-accent text-accent-foreground px-1 py-px rounded font-mono text-3xs tracking-wider"
                 >
                   {tag}
                 </span>
@@ -3021,7 +3057,7 @@ function ModelListRow({
           )}
         </div>
         <span className="w-24 text-right text-xs font-mono text-muted-foreground truncate hidden sm:block">
-          {model.collection || "—"}
+          {collectionLabel || "—"}
         </span>
         <span className="w-20 text-right text-xs font-mono text-muted-foreground">
           {model.file_count}
