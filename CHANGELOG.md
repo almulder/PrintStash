@@ -19,6 +19,11 @@ image. See UPGRADE.md before pulling.**
   downloaded AI search models, previously left in the container's own layer,
   now persist across updates.
 
+- Model Families have been removed. Existing Models, files, G-code revisions and
+  print history remain independent; existing Family relationships and covers
+  are retired when the database migration runs. Multipart Models continue to
+  support named parts and alternative Models.
+
 - Nine Compose files became two in the repository root: `docker-compose.yml`
   starts PrintStash as one container (web UI and full API) with no
   configuration, and `docker-compose.advanced.yml` wires every setting with its
@@ -29,6 +34,12 @@ image. See UPGRADE.md before pulling.**
 - CI no longer runs the eight per-image Docker build and Grype jobs or the
   legacy MinIO-to-SeaweedFS migration job. Container publishing no longer runs
   Grype scans; release builds and the legacy migration helper remain available.
+
+- AI Search settings now separate guided setup, search types, AI servers and
+  technical options. Search types and compatible models appear as visible choices;
+  the active search is clearly separate from a new index build. Specialist index
+  tuning has its own view; server editing and custom model choices no longer
+  depend on nested dropdown sections.
 
 ### Performance
 
@@ -44,6 +55,7 @@ image. See UPGRADE.md before pulling.**
 
 ### Added
 
+- Similar models is now one click from the desktop header and one tap from the mobile navigation bar.
 - DXF files can be imported as source Artifacts, downloaded with their original
   bytes, and included in backups. Drawing previews are not yet available.
 - Managed source Artifacts can be moved to trash and restored individually from
@@ -74,15 +86,6 @@ image. See UPGRADE.md before pulling.**
 - PostgreSQL supports the existing backup API through verified portable snapshots.
   A dry-run-first SQLite-to-PostgreSQL command preserves encrypted fields, IDs,
   cyclic library references and native vector bytes without re-embedding.
-- Model Families preserve independent Models and Revisions while recording human
-  variant roles, an explicit canonical selection and relative measurements.
-  Membership moves and Family restoration are atomic; Model trash reserves its
-  membership, and purging a Model explicitly clears its Family references.
-  Portable v2 preserves Families and their covers, with idempotent reimport,
-  explicit membership conflicts, and a v1 export option for older installations.
-  The library adds collapsed Family browsing, Saved Views, paginated member
-  selection, shared-scale comparison and explicit Multipart Choice drafts.
-  Manual Family workflows also work without similarity or inference packages.
 - **Similar Models** offers opt-in local geometry analysis, resumable library scans,
   a filtered review queue and synchronized comparisons at shared physical scale.
   Evidence confirmation keeps each Model, Artifact and Revision separate; verified
@@ -92,6 +95,16 @@ image. See UPGRADE.md before pulling.**
   separate from verified geometry, and analysis never downloads model weights.
 
 ### Fixed
+
+- Mounted Library source folders keep their exact capitalization and spaces in
+  collection labels and write-back destinations. Case- or punctuation-distinct
+  folders remain separate, including on rescan of previously indexed sources.
+- Double-clicking a collection in the library sidebar keeps that collection open
+  instead of returning to All Models.
+- Long nested collection paths stay within the upload dialog's collection selector.
+- Browser Back now returns through the Vault's collection navigation before leaving for an earlier page.
+- Model cards show the collection name in their badge instead of its full hierarchy path.
+- Long collection paths no longer push the Create Family model picker beyond the dialog edge.
 
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
@@ -116,10 +129,7 @@ image. See UPGRADE.md before pulling.**
   explanations.
 - Model detail tabs fit their panel without horizontal scrolling. Similar Models
   keep readable names and reachable comparison actions in narrow panels.
-- Family pages explain that a Family groups versions of one design, show the main
-  Model in context, and place technical details and filters behind optional controls.
-  The library exposes multipart creation as a separate action on desktop and mobile.
-  Active Family filters remain discoverable when opening a saved or shared view.
+- The library exposes multipart creation as a separate action on desktop and mobile.
 
 - AI search recovers bounded name misspellings, finds functional holder metadata,
   and rejects weak short-query matches before combining retrieval signals.
@@ -141,16 +151,13 @@ image. See UPGRADE.md before pulling.**
 - Search backfill drains bounded batches between periodic pauses, removing the
   one-second delay per embedding batch while preserving maintenance and shutdown
   coordination. Settled active generations stop a burst without inference.
-- Family browsing uses recent changes when relevance scores are unavailable,
-  preserving valid cursors for collapsed cards and the Families list.
-
 - Restoring AI Search backups no longer requires optional vector extensions to
   inspect unversioned databases. Durable vectors remain searchable through the
   portable backend while native acceleration is disabled.
 
 - AI Search activation acquires the SQLite writer lock before verification, so
   concurrent worker commits cannot invalidate the cutover snapshot. Search and
-  ordinary Model results start without the optional Families annotation package.
+  ordinary Model results start without optional search annotations.
 
 - Caption text and unsaved edits now clear when the signed-in account changes,
   including account changes received from another browser tab.
@@ -195,6 +202,25 @@ image. See UPGRADE.md before pulling.**
 - Pending Imports remain readable when an older or damaged capture manifest is incomplete, without overwriting the stored capture data.
 
 ### Changed
+
+- Storage and Maintenance settings now lead with plain-language tasks, usage, and
+  library checks. Technical cache, migration, and audit controls open on demand;
+  Maintenance actions and backup verification align across narrow screens;
+  Similar Models has its own analysis and paired candidate review flow. An empty
+  audit history no longer generates a failed latest-audit request, and schedules
+  remain available if history fails to load. Collection usage now compares sizes
+  in a compact view with readable B, KB, MB, or GB units and direct Model drilldown.
+  Storage insights now highlights stored files and free space, groups usage by
+  purpose, and shows a dated history chart. File types and provider evidence remain
+  available in Measurement details with readable file-type labels. Collection
+  storage now shows recorded sizes with model counts instead of bars scaled to
+  the largest item on each page. Opening a collection now shows its models in
+  the same fixed-size Collection storage area, preserving the two-column
+  collection layout and links to Model details. Model pages fit fully above the
+  pager even for large collections. Pagination
+  shows the visible range, and recent storage activity appears directly when
+  there is something to report. Cleanup actions appear only for measured
+  candidates and lead with the reclaimable size.
 
 - The getting-started reminder can be dismissed with Don't show again. The choice
   is remembered per user in the current browser across Settings and the empty library.
