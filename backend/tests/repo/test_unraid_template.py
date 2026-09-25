@@ -95,6 +95,13 @@ class TestPrintStashTemplate:
             "blank fields fall back to browser registration on the LAN"
         )
 
+    def test_warns_that_blank_fields_mean_local_network_registration(self) -> None:
+        # Left blank, the first administrator can only register from the LAN;
+        # someone arriving through Tailscale or a domain must know to fill it in.
+        description = _variables()["VAULT_SETUP_ADMIN_USERNAME"].get("Description", "")
+
+        assert "local network" in description, description
+
     def test_masks_the_administrator_password(self) -> None:
         assert _variables()["VAULT_SETUP_ADMIN_PASSWORD"].get("Mask") == "true"
 

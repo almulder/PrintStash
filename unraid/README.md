@@ -65,10 +65,13 @@ secret, or command override is needed.
    start; sign in with it and choose where files are stored. The fields are used
    once: editing them later does not change the account (reset a password under
    **Settings → Users**).
-5. Otherwise, leave them blank, open the WebUI on a trusted local network and
-   create the administrator account in the browser. The first person to register
-   becomes the administrator; registration closes once an account exists. Do not
-   expose first-run setup to the internet.
+5. If you leave them blank, the administrator is created in the browser, and
+   **only from your local network**: open the WebUI at `http://tower.local:3000`
+   or the server's LAN IP. Registration through Tailscale, a VPN, a reverse proxy,
+   Unraid Connect or a domain is refused, so if that is how you will first reach
+   PrintStash, fill in the fields in step 4 instead. The first person to register
+   becomes the administrator, and registration closes once an account exists. Do
+   not expose first-run setup to the internet.
 
 The template sets `VAULT_SETUP_MODE=trusted_network` for the initial registration
 and `VAULT_RESTART_ENABLED=true` for Settings → Restart. The template uses
