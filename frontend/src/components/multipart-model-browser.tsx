@@ -1,7 +1,5 @@
 "use client";
 
-import { FamilyChoicesDialog } from "@/components/families/choices-dialog";
-import { newFamilyChoices } from "@/lib/family-choices";
 import { uiText } from "@/lib/locale";
 import { collectionDisplayPath } from "@/lib/collection-display";
 import { useUiLocale } from "@/lib/i18n";
@@ -1155,7 +1153,6 @@ function PartEditorRow({
   onName,
   onQuantity,
   onRemoveModel,
-  onFamilyChoices,
   onRemovePart,
   onOpenPicker,
   onMoveUp,
@@ -1166,7 +1163,6 @@ function PartEditorRow({
   index: number;
   onName: (name: string) => void;
   onQuantity: (quantity: number) => void;
-  onFamilyChoices: (modelId: number) => void;
   onRemoveModel: (choiceId: number | undefined, modelId: number) => void;
   onRemovePart: () => void;
   onOpenPicker: () => void;
@@ -1272,19 +1268,6 @@ function PartEditorRow({
             className="flex items-center gap-3 p-3"
           >
             <MemberRow model={model} />
-            {model.available && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onFamilyChoices(model.id)}
-                aria-label={t("families.choicesFrom", {
-                  name: model.name ?? t("families.unknown"),
-                })}
-              >
-                {t("families.title")}
-              </Button>
-            )}
             <Button
               type="button"
               variant="ghost"
@@ -1306,9 +1289,6 @@ export function MultipartModelDetailPage() {
   useUiLocale();
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
-  const [familyChoices, setFamilyChoices] = useState<{ part: number; modelId: number } | null>(
-    null,
-  );
   const { t } = useI18n();
   const { user } = useAuth();
   const { data: collections = [] } = useCollections();
@@ -1747,7 +1727,6 @@ export function MultipartModelDetailPage() {
                     })
                   }
                   onOpenPicker={() => openPicker(index)}
-                  onFamilyChoices={(modelId) => setFamilyChoices({ part: index, modelId })}
                 />
               ))}
             </section>
@@ -1992,31 +1971,6 @@ export function MultipartModelDetailPage() {
               {t("multipart.save")}
             </Button>
           </div>
-          {familyChoices && (
-            <FamilyChoicesDialog
-              modelId={familyChoices.modelId}
-              usedIds={usedIds}
-              onClose={() => setFamilyChoices(null)}
-              onSelect={(members) => {
-                const partIndex = familyChoices.part;
-                setDraft((current) => {
-                  if (!current) return current;
-                  const used = new Set(
-                    current.parts.flatMap((part) => part.models.map((item) => item.id)),
-                  );
-                  const choices = newFamilyChoices(members, used);
-                  return {
-                    ...current,
-                    parts: current.parts.map((part, index) =>
-                      index === partIndex
-                        ? { ...part, models: [...part.models, ...choices] }
-                        : part,
-                    ),
-                  };
-                });
-              }}
-            />
-          )}
           <ModelPicker
             key={picker.session}
             open={picker.open}

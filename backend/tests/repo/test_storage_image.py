@@ -26,15 +26,7 @@ class TestStorageImage:
         workflow = yaml.safe_load(
             (REPO_ROOT / ".github/workflows/container-publish.yml").read_text()
         )
-        job = next(
-            value
-            for value in workflow["jobs"].values()
-            if "matrix" in value.get("strategy", {})
-            and any(
-                row.get("image") == "printstash-api"
-                for row in value["strategy"]["matrix"].get("include", [])
-            )
-        )
+        job = workflow["jobs"]["build"]
         images = [
             row
             for row in job["strategy"]["matrix"]["include"]
@@ -76,4 +68,7 @@ class TestStorageImage:
             index
             for index, step in enumerate(steps)
             if step.get("name") == "Export digest"
+        )
+        assert any(
+            "test-unified-image.sh" in step.get("run", "") for step in steps
         )
