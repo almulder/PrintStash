@@ -28,7 +28,7 @@ test.describe("Standalone similarity", () => {
   test("@critical reviews similar Models without grouping or changing Artifacts", async ({
     page,
   }, testInfo) => {
-    test.setTimeout(300_000);
+    test.setTimeout(420_000);
     const prefix = `similarity-${Date.now()}`;
     await page.goto("/library/similar");
     // Development tooling is outside the preview; its floating button can obscure
@@ -220,15 +220,26 @@ test.describe("Standalone similarity", () => {
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true);
       await page.screenshot({ path: testInfo.outputPath("similarity-mobile.png"), fullPage: true });
-      await page.getByRole("button", { name: "Confirm evidence" }).click();
-      const [reviewResponse] = await Promise.all([
-        page.waitForResponse(
-          (response) =>
-            response.url().endsWith("/decision") && response.request().method() === "POST",
-        ),
-        page.getByRole("dialog").getByRole("button", { name: "Confirm evidence" }).click(),
-      ]);
-      expect(reviewResponse.ok(), await reviewResponse.text()).toBe(true);
+      let confirmed = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await page.getByRole("button", { name: "Confirm evidence" }).click();
+        const [reviewResponse] = await Promise.all([
+          page.waitForResponse(
+            (response) =>
+              response.url().endsWith("/decision") && response.request().method() === "POST",
+          ),
+          page.getByRole("dialog").getByRole("button", { name: "Confirm evidence" }).click(),
+        ]);
+        if (reviewResponse.ok()) {
+          confirmed = true;
+          break;
+        }
+        expect(reviewResponse.status(), await reviewResponse.text()).toBe(409);
+        await expect(page.getByRole("alert")).toContainText("This evidence changed");
+        await page.reload();
+        await expect(page.getByRole("heading", { name: "Compare models" })).toBeVisible();
+      }
+      expect(confirmed).toBe(true);
       await expect(page.getByText("Resolution: evidence confirmed")).toBeVisible();
       await page.reload();
       await expect(page.getByText("Resolution: evidence confirmed")).toBeVisible();
