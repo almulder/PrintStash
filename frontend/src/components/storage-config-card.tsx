@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StorageProviderFields } from "@/components/storage-provider-fields";
 import { providerFields } from "@/lib/storage-provider-form";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { ImportCopyWarning } from "@/components/import-copy-warning";
 import type {
   StorageHealthRead,
   StorageRootRole,
@@ -214,6 +215,7 @@ export function StorageConfigCard({
               </div>
             </div>
           )}
+          <ImportCopyWarning storageHealth={storageHealth} />
           {invalidRoots.length > 0 && (
             <div
               role="alert"

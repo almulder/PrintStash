@@ -6,6 +6,10 @@
 `docker-compose.advanced.yml`; `docker-compose.yml` now runs the single-container
 image. See UPGRADE.md before pulling.**
 
+**Compose installs: both Compose files now mount one `printstash` volume at
+`/data` instead of five. Copy your data into it before starting the new file
+(one command, in UPGRADE.md), or the app starts empty at first-run setup.**
+
 ### Changed
 
 - Collection tree badges now count Models in child folders, use the complete
@@ -17,6 +21,12 @@ image. See UPGRADE.md before pulling.**
   and activity have separate views; sizes use MB or GB. Storage cards reserve
   their layout while loading, and remote connection setup uses the same visible
   category and provider choices as Move Vault storage.
+- **One data volume.** Every path PrintStash writes (database, files,
+  thumbnails, staging, backups, caches) lives under `VAULT_DATA_ROOT`, `/data`
+  in the container, so a deployment mounts one volume. Each directory can still
+  be moved on its own with its existing variable. The artifact cache and
+  downloaded AI search models, previously left in the container's own layer,
+  now persist across updates.
 
 - Model Families have been removed. Existing Models, files, G-code revisions and
   print history remain independent; existing Family relationships and covers
@@ -39,6 +49,18 @@ image. See UPGRADE.md before pulling.**
   the active search is clearly separate from a new index build. Specialist index
   tuning has its own view; server editing and custom model choices no longer
   depend on nested dropdown sections.
+
+### Performance
+
+- **Imports no longer copy files into local storage.** A staged upload, URL
+  import, library-transfer archive entry or Bambu print capture
+  becomes its library file by hard link when staging shares the library's
+  mount, which the single `/data` volume guarantees: instant, whatever the file
+  size, with no second copy on disk. Local backups publish their archive the
+  same way when no remote replica needs it. Where a link is impossible (another
+  mount, or a filesystem without hard links) the file is copied as before, and
+  Settings warns "Imports are copied, not hard-linked" with a link to the
+  storage layout guide, which lists the layouts that keep hard links.
 
 ### Added
 
