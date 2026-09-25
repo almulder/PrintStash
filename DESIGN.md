@@ -124,8 +124,9 @@ information; when several technical views need separation, use the existing
 for a small set of related status values instead of a row of decorative badges.
 For current storage, lead with the provider and one active safety state. Keep
 paths readable but secondary; explain migration in its workflow, not in the
-status card. Similar Models belongs in the library's visible controls rather
-than the global header.
+status card. Similar candidates belong in each Model's Similar tab; do not
+duplicate that entry in the library toolbar or global header. Keep Model detail
+tabs in one row, with horizontal scrolling only when their labels cannot fit.
 Collection tree counts describe the whole branch, including child collections.
 Keep count badges visible at the default sidebar width and truncate long names
 before allowing a badge to slide outside the viewport.

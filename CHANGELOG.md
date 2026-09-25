@@ -40,8 +40,8 @@ image. See UPGRADE.md before pulling.**
 
 ### Added
 
-- Similar models is available from the desktop library toolbar, mobile
-  navigation bar, and Model detail.
+- Similar candidates are available from the Model detail Similar tab. Mobile
+  navigation retains library-wide Similar Models discovery.
 - The search bar now uses an icon-only AI control to switch between AI and
   keyword results. Search results use the full browsing surface with visible
   filters and simpler result cards instead of a nested results panel. Print
@@ -123,8 +123,8 @@ image. See UPGRADE.md before pulling.**
 - Library search keeps typing and Enter in the current library view. A labeled
   “Search with AI” action opens AI results; result cards no longer show retrieval
   explanations.
-- Model detail tabs fit their panel without horizontal scrolling. Similar Models
-  keep readable names and reachable comparison actions in narrow panels.
+- Model detail tabs stay in one row, scrolling within the tab bar when needed.
+  Similar Models keep readable names and reachable comparison actions in narrow panels.
 - The library exposes multipart creation as a separate action on desktop and mobile.
 
 - AI search recovers bounded name misspellings, finds functional holder metadata,

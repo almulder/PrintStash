@@ -81,16 +81,37 @@ test.describe("search clarity", () => {
     await page.screenshot({ path: testInfo.outputPath("search-dense-mobile-list-dark.png") });
   });
 
-  test("keeps every detail tab inside a narrow panel", async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
+  test("keeps Model detail navigation on one row at desktop and mobile widths", async ({
+    page,
+  }, testInfo) => {
     await page.addInitScript(() => localStorage.setItem("ps-model-detail-sidebar-width", "400"));
-    await page.goto("/models/1");
-    const tabs = page.getByTestId("model-detail-sidebar").getByRole("tablist");
-    await expect(tabs.getByRole("tab", { name: "Similar", exact: true })).toBeVisible();
-    expect(await tabs.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    await tabs.getByRole("tab", { name: "Overview", exact: true }).focus();
-    await page.keyboard.press("ArrowLeft");
-    await expect(tabs.getByRole("tab", { name: "Similar", exact: true })).toBeFocused();
+    for (const viewport of [
+      { width: 1920, height: 1080 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/models/1");
+      const tabs = page.getByTestId("model-detail-sidebar").getByRole("tablist");
+      const overview = tabs.getByRole("tab", { name: "Overview", exact: true });
+      const similar = tabs.getByRole("tab", { name: "Similar", exact: true });
+      await expect(similar).toBeVisible();
+      const tabWidths = await tabs.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      expect(tabWidths.scroll).toBeLessThanOrEqual(tabWidths.client);
+      const positions = await Promise.all([
+        overview.evaluate((el) => el.getBoundingClientRect().top),
+        similar.evaluate((el) => el.getBoundingClientRect().top),
+      ]);
+      expect(Math.abs(positions[0] - positions[1])).toBeLessThan(2);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await overview.focus();
+      await page.keyboard.press("ArrowLeft");
+      await expect(similar).toBeFocused();
+      await similar.click();
+      await expect(similar).toHaveAttribute("aria-selected", "true");
+      await page.screenshot({ path: testInfo.outputPath(`model-tabs-${viewport.width}.png`) });
+    }
   });
 
   test("keeps similar Model names readable in a narrow desktop panel", async ({ page }) => {
