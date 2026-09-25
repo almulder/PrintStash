@@ -255,6 +255,19 @@ afterEach(() => {
 });
 
 describe("StorageConfigCard", () => {
+  it("reserves the current storage layout while configuration loads", async () => {
+    let finish: (response: Response) => void = () => {};
+    const pending = new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+    renderCard({ routes: { "GET /api/v1/config": () => pending } });
+
+    expect(screen.getByRole("status", { name: "Current storage" })).toBeVisible();
+    finish(json(aConfig()));
+    expect(await screen.findByDisplayValue("/data/files")).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Current storage" })).toBeNull();
+  });
+
   describe("a local deployment", () => {
     it("explains a missing root without offering unsafe acknowledgement", async () => {
       renderCard({

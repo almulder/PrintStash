@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   cleanupStorageCache,
   cleanupStorageStaging,
@@ -328,9 +329,22 @@ export function StorageInventoryPanel() {
         </div>
       )}
       {!current && !error && (
-        <p role="status" className="p-4 text-sm text-muted-foreground">
-          {t("Loading storage insights…")}
-        </p>
+        <div
+          role="status"
+          aria-label={t("Loading storage insights…")}
+          className="space-y-5 p-4 sm:p-5"
+        >
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="space-y-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-28 max-w-full" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-24 w-full" />
+          <span className="sr-only">{t("Loading storage insights…")}</span>
+        </div>
       )}
       {current && (
         <>

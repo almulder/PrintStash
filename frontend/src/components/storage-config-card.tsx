@@ -13,6 +13,7 @@ import {
   updateVaultConfig,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StorageProviderFields } from "@/components/storage-provider-fields";
 import { providerFields } from "@/lib/storage-provider-form";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
@@ -124,8 +125,18 @@ export function StorageConfigCard({
               {t("settings.currentStorage")}
             </h3>
           </div>
-          <div className="p-3 sm:p-4 lg:p-6 text-sm text-muted-foreground">
-            {uiText("Loading...")}
+          <div
+            role="status"
+            aria-label={t("settings.currentStorage")}
+            className="space-y-4 p-4 sm:p-5 lg:p-6"
+          >
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-3/4" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+            <span className="sr-only">{uiText("Loading...")}</span>
           </div>
         </div>
       </Localized>

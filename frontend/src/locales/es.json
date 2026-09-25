@@ -497,6 +497,7 @@
   "Remote storage": "Almacenamiento remoto",
   "Google Drive": "Google Drive",
   "Connections": "Conexiones",
+  "No remote storage connected yet.": "Aún no hay almacenamiento remoto conectado.",
   "Loading connections…": "Cargando conexiones…",
   "Add remote connection": "Añadir conexión remota",
   "Use for": "Usar para",

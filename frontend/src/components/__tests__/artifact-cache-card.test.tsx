@@ -11,6 +11,30 @@ import { anArtifactCache } from "@/test-support/factories";
 const INITIAL = anArtifactCache();
 
 describe("ArtifactCacheCard", () => {
+  it("reserves the cache controls while policy loads", async () => {
+    let finish: (value: ArtifactCacheRead) => void = () => {};
+    const pending = new Promise<ArtifactCacheRead>((resolve) => {
+      finish = resolve;
+    });
+    renderApp(
+      <ArtifactCacheCard
+        api={{
+          read: () => pending,
+          save: async () => INITIAL,
+          reset: async () => INITIAL,
+          clear: async () => INITIAL,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("status", { name: "Loading cache settings…" })).toBeVisible();
+    finish(INITIAL);
+    expect(
+      await screen.findByRole("checkbox", { name: "Enable remote Artifact cache" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Loading cache settings…" })).toBeNull();
+  });
+
   it("shows large cache limits in GB", async () => {
     const observed = anArtifactCache({
       policy: {

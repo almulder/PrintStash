@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Localized } from "@/components/ui/localized";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TabBar } from "@/components/ui/tabs";
 import { artifactCacheApi, type ArtifactCacheRead } from "@/lib/api/artifact-cache";
 import { formatBytes } from "@/lib/format";
@@ -171,9 +172,17 @@ export function ArtifactCacheCard({ api = artifactCacheApi }: { api?: typeof art
             </div>
           )}
           {!failed && !value && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {uiText("Loading cache settings…")}
-            </p>
+            <div role="status" aria-label={uiText("Loading cache settings…")} className="space-y-5">
+              <Skeleton className="h-10 w-64 max-w-full" />
+              <Skeleton className="h-4 w-48 max-w-full" />
+              <Skeleton className="h-10 w-72 max-w-full" />
+              <div className="grid gap-4 sm:grid-cols-3">
+                {[0, 1, 2].map((item) => (
+                  <Skeleton key={item} className="h-16 w-full" />
+                ))}
+              </div>
+              <span className="sr-only">{uiText("Loading cache settings…")}</span>
+            </div>
           )}
           {value && policy && (
             <form

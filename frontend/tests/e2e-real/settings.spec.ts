@@ -1083,6 +1083,67 @@ test.describe("settings", () => {
     await expect(row).toHaveCount(0);
   });
 
+  test("keeps remote storage stable while providers load", async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem("printstash.theme", "dark"));
+    let releaseProviders: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      releaseProviders = resolve;
+    });
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.route("**/api/v1/storage/providers", async (route) => {
+      const response = await route.fetch();
+      await pending;
+      await route.fulfill({ response });
+    });
+    await page.goto("/settings?section=remote-storage", { waitUntil: "domcontentloaded" });
+    const remote = page.getByRole("region", { name: "Remote storage" });
+
+    await expect(remote.getByRole("status", { name: "Add remote connection" })).toBeVisible();
+    await expect(remote.getByLabel("Connection name")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("remote-loading-1920.png") });
+    releaseProviders();
+    await expect(remote.getByRole("group", { name: "Storage category" })).toBeVisible();
+    await page.unroute("**/api/v1/storage/providers");
+  });
+
+  test("guides remote provider selection at desktop and mobile widths", async ({
+    page,
+  }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem("printstash.theme", "dark"));
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto("/settings?section=remote-storage");
+    const remote = page.getByRole("region", { name: "Remote storage" });
+    await expect(remote.getByRole("group", { name: "Storage category" })).toBeVisible();
+    await remote
+      .getByRole("group", { name: "Storage category" })
+      .getByRole("button", { name: "Nextcloud and WebDAV" })
+      .click();
+    await expect(remote.getByLabel("Server URL")).toBeVisible();
+    await remote
+      .getByRole("group", { name: "Use for" })
+      .getByRole("button", { name: "Backup replicas" })
+      .click();
+    await expect(
+      remote
+        .getByRole("group", { name: "Use for" })
+        .getByRole("button", { name: "Backup replicas" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.screenshot({
+      path: testInfo.outputPath("remote-provider-1920.png"),
+      fullPage: true,
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(remote.getByLabel("Server URL")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await remote.getByRole("group", { name: "Provider" }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("remote-provider-390.png") });
+    await remote.getByLabel("Server URL").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("remote-fields-390.png") });
+  });
+
   test("remote connection controls align at intermediate widths", async ({ page }) => {
     const connectionName = `e2e-remote-layout-${Date.now()}`;
     const created = await page.request.post("/api/v1/storage-connections", {

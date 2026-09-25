@@ -127,6 +127,11 @@ paths readable but secondary; explain migration in its workflow, not in the
 status card. Similar candidates belong in each Model's Similar tab; do not
 duplicate that entry in the library toolbar or global header. Keep Model detail
 tabs in one row, with horizontal scrolling only when their labels cannot fit.
+Async settings cards keep their header and reserve the shape of their content
+with skeletons until initial reads settle. Do not expose a partial form whose
+provider fields appear later. Remote storage uses the same visible category and
+provider choices as Move Vault storage; keep selected state and field framing
+consistent between the two flows.
 Collection tree counts describe the whole branch, including child collections.
 Keep count badges visible at the default sidebar width and truncate long names
 before allowing a badge to slide outside the viewport.

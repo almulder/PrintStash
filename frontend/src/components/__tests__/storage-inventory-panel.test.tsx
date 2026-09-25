@@ -73,6 +73,21 @@ function setup(response = report) {
 }
 
 describe("Storage insights", () => {
+  it("reserves the capacity layout while insights load", async () => {
+    let finish: (response: Response) => void = () => {};
+    const pending = new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+    renderApp(<StorageInventoryPanel />, {
+      routes: { "GET /api/v1/storage/inventory": () => pending },
+    });
+
+    expect(screen.getByRole("status", { name: "Loading storage insights…" })).toBeVisible();
+    finish(json(report));
+    expect(await screen.findByText("Files stored here")).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Loading storage insights…" })).toBeNull();
+  });
+
   it("shows small capacity summaries in MB", async () => {
     setup({
       ...report,

@@ -14,7 +14,9 @@ image. See UPGRADE.md before pulling.**
 
 - Storage settings now show one clear current safety state and the location,
   while remote file cache is visible without nested dropdowns. Cache limits
-  and activity have separate views; sizes use MB or GB.
+  and activity have separate views; sizes use MB or GB. Storage cards reserve
+  their layout while loading, and remote connection setup uses the same visible
+  category and provider choices as Move Vault storage.
 
 - Model Families have been removed. Existing Models, files, G-code revisions and
   print history remain independent; existing Family relationships and covers
