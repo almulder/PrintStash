@@ -95,7 +95,10 @@ test.describe("search clarity", () => {
       const overview = tabs.getByRole("tab", { name: "Overview", exact: true });
       const similar = tabs.getByRole("tab", { name: "Similar", exact: true });
       await expect(similar).toBeVisible();
-      const tabWidths = await tabs.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      const tabWidths = await tabs.evaluate((el) => ({
+        scroll: el.scrollWidth,
+        client: el.clientWidth,
+      }));
       expect(tabWidths.scroll).toBeLessThanOrEqual(tabWidths.client);
       const positions = await Promise.all([
         overview.evaluate((el) => el.getBoundingClientRect().top),
