@@ -73,6 +73,12 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- Opening a folder in the library no longer swaps the grid for a loading
+  skeleton; the current folder stays on screen until the next one is ready.
+  Folders are also prefetched when the pointer rests on them or they receive
+  keyboard focus, and a folder's readme is requested only when it has one and
+  is cached for later visits (`CollectionRead` gains `has_readme`).
+
 - Double-clicking a collection in the library sidebar keeps that collection open
   instead of returning to All Models.
 - Long nested collection paths stay within the upload dialog's collection selector.
