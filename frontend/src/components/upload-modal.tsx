@@ -1001,13 +1001,16 @@ export function UploadModal({
                       onClick={() => setCatOpen((v) => !v)}
                       aria-haspopup="listbox"
                       aria-expanded={catOpen}
-                      className="w-full h-10 flex items-center justify-between bg-surface-container-lowest text-on-surface font-mono text-sm border border-outline-variant rounded px-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      title={collectionPath || undefined}
+                      className="w-full h-10 flex min-w-0 items-center gap-2 bg-surface-container-lowest text-on-surface font-mono text-sm border border-outline-variant rounded px-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     >
-                      <span className={collectionPath ? "" : "text-on-surface-variant/60"}>
+                      <span
+                        className={`min-w-0 flex-1 truncate text-left ${collectionPath ? "" : "text-on-surface-variant/60"}`}
+                      >
                         {collectionPath ||
                           (user?.is_superuser ? uiText("None") : uiText("Choose collection"))}
                       </span>
-                      <ChevronDown className="h-4 w-4 text-on-surface-variant" />
+                      <ChevronDown className="h-4 w-4 shrink-0 text-on-surface-variant" />
                     </button>
                   }
                 >
