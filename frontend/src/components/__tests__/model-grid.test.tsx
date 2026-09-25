@@ -21,6 +21,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ModelBrowser } from "@/components/model-grid";
@@ -138,6 +139,7 @@ function renderVault(
     multipartModels?: MultipartModelListItem[];
     collections?: CollectionRead[];
     tags?: TagRead[];
+    historyProbe?: boolean;
   } = {},
 ) {
   const {
@@ -145,31 +147,49 @@ function renderVault(
     multipartModels = [],
     collections = [],
     tags = [],
+    historyProbe = false,
     seed = [],
     routes = {},
     ...rest
   } = options;
-  return renderApp(<ModelBrowser />, {
-    seed: [
-      [queryKeys.collections, collections],
-      [queryKeys.tags, tags],
-      [queryKeys.vaultStats, { model_count: models.length, file_count: 0, total_size_bytes: 0 }],
-      ...seed,
-    ],
-    routes: {
-      "GET /api/v1/models/facets": json(EMPTY_FACETS),
-      "GET /api/v1/models/page": json({ items: models, total: models.length, next_cursor: null }),
-      "GET /api/v1/models/outliner": json([]),
-      "GET /api/v1/models": json(models),
-      "GET /api/v1/saved-views": json([]),
-      "GET /api/v1/documents": json([]),
-      "GET /api/v1/multipart-models": json(multipartModels),
-      "GET /api/v1/collections": json(collections),
-      "GET /api/v1/tags": json(tags),
-      ...routes,
+  return renderApp(
+    <>
+      <ModelBrowser />
+      {historyProbe && <HistoryProbe />}
+    </>,
+    {
+      seed: [
+        [queryKeys.collections, collections],
+        [queryKeys.tags, tags],
+        [queryKeys.vaultStats, { model_count: models.length, file_count: 0, total_size_bytes: 0 }],
+        ...seed,
+      ],
+      routes: {
+        "GET /api/v1/models/facets": json(EMPTY_FACETS),
+        "GET /api/v1/models/page": json({ items: models, total: models.length, next_cursor: null }),
+        "GET /api/v1/models/outliner": json([]),
+        "GET /api/v1/models": json(models),
+        "GET /api/v1/saved-views": json([]),
+        "GET /api/v1/documents": json([]),
+        "GET /api/v1/multipart-models": json(multipartModels),
+        "GET /api/v1/collections": json(collections),
+        "GET /api/v1/tags": json(tags),
+        ...routes,
+      },
+      ...rest,
     },
-    ...rest,
-  });
+  );
+}
+
+function HistoryProbe() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="vault-location">{location.pathname + location.search}</output>
+      <button onClick={() => navigate(-1)}>History back</button>
+    </>
+  );
 }
 
 /**
@@ -519,6 +539,21 @@ describe("ModelBrowser", () => {
 
       expect(await screen.findByRole("heading", { name: "Parts" })).toBeVisible();
     });
+
+    it("does not add history when the current collection breadcrumb is clicked", async () => {
+      renderVault({ collections: [aCollection()], historyProbe: true });
+
+      const main = await screen.findByRole("main");
+      fireEvent.click(within(main).getByRole("button", { name: /Parts/ }));
+      expect(await screen.findByRole("heading", { name: "Parts" })).toBeVisible();
+
+      const breadcrumb = within(main).getByRole("navigation");
+      fireEvent.click(within(breadcrumb).getByRole("button", { name: "Parts" }));
+      fireEvent.click(screen.getByRole("button", { name: "History back" }));
+
+      await waitFor(() => expect(screen.getByTestId("vault-location")).toHaveTextContent(/^\/$/));
+      expect(screen.getByRole("heading", { name: "All Models" })).toBeVisible();
+    }, 20_000);
 
     it("shows multipart sets in the collection tree", async () => {
       renderVault({ multipartModels: [aMultipartSet()] });

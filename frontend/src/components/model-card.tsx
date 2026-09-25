@@ -408,8 +408,11 @@ function ModelCardInner({
           <div className="px-3 pb-3 mt-auto flex items-end justify-between gap-2 border-t border-border pt-2">
             <div className="flex flex-wrap gap-1.5 min-w-0">
               {collectionLabel && (
-                <span className="px-2 py-0.5 bg-muted border border-border rounded text-xs font-mono font-semibold text-muted-foreground tracking-tight">
-                  {collectionLabel}
+                <span
+                  title={collectionLabel}
+                  className="px-2 py-0.5 bg-muted border border-border rounded text-xs font-mono font-semibold text-muted-foreground tracking-tight"
+                >
+                  {collectionLabel.split("/").at(-1)}
                 </span>
               )}
               {ps?.slicer_name && (

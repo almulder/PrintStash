@@ -70,17 +70,30 @@ afterEach(() => {
 });
 
 describe("ModelCard", () => {
-  it("shows the collection label instead of its slug", () => {
-    renderApp(
-      <ModelCard
-        model={{ ...model, collection: "testing/my-parts", tags: ["My Parts"] }}
-        collectionLabel="Testing/My Parts"
-      />,
-    );
+  describe("collection badge", () => {
+    it("shows the exact folder name instead of its slug", () => {
+      renderApp(
+        <ModelCard
+          model={{ ...model, collection: "testing/my-parts" }}
+          collectionLabel="Testing/My Parts"
+        />,
+      );
 
-    expect(screen.getByText("Testing/My Parts")).toBeVisible();
-    expect(screen.queryByText("testing/my-parts")).toBeNull();
-    expect(screen.getByText("My Parts")).toBeVisible();
+      expect(screen.getByText("My Parts")).toBeVisible();
+      expect(screen.queryByText("my-parts")).toBeNull();
+    });
+
+    it("shows only the collection name from a hierarchy path", () => {
+      renderApp(
+        <ModelCard
+          model={{ ...model, collection: "printstash-data/workstation/drawer-organizer" }}
+          collectionLabel="PrintStash Data/Workstation/Drawer Organizer"
+        />,
+      );
+
+      expect(screen.getByText("Drawer Organizer")).toBeVisible();
+      expect(screen.queryByText("PrintStash Data/Workstation/Drawer Organizer")).toBeNull();
+    });
   });
 
   describe("quick tag access", () => {
