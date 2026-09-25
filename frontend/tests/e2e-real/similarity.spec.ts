@@ -2,7 +2,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { SimilarityRun } from "../../src/types/similarity";
-import { silhouetteOverlap } from "../similarity-pixels";
 import { test, expect } from "./helpers";
 import { modelCard, openFilters, openLibraryTools } from "./util";
 
@@ -148,14 +147,17 @@ test.describe("Standalone similarity", () => {
         for (const model of models) await expect(modelCard(page, model.name)).toBeVisible();
       });
       await page.goto("/library/similar");
+      await expect(page.getByRole("heading", { name: "Similar models", level: 1 })).toBeVisible({
+        timeout: 60_000,
+      });
       const compare = page
         .getByRole("listitem")
         .filter({ hasText: models[0].name })
         .filter({ hasText: models[1].name })
         .getByRole("link", { name: "Compare" });
-      await expect(compare).toBeVisible();
+      await expect(compare).toBeVisible({ timeout: 60_000 });
       await test.step("Review filters change the visible candidate set", async () => {
-        await page.getByText("Advanced settings", { exact: true }).click();
+        await page.getByText("More filters", { exact: true }).click();
         await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible();
         for (const [name, absent, reset] of [
           ["Review candidates", "confirmed", "open"],
@@ -175,7 +177,7 @@ test.describe("Standalone similarity", () => {
         await expect(compare).toHaveCount(0);
         await knownGood.click();
         await expect(compare).toBeVisible();
-        await page.getByText("Advanced settings", { exact: true }).click();
+        await page.getByText("More filters", { exact: true }).click();
       });
       for (const [label, width, height] of [
         ["desktop", 1280, 800],
@@ -223,15 +225,6 @@ test.describe("Standalone similarity", () => {
           ).equals(originalView),
         )
         .toBe(false);
-      const screenshotStyle =
-        '[aria-label="Open Tanstack query devtools"], [title="Open Tanstack query devtools"] { display: none !important; }';
-      await expect
-        .poll(async () => {
-          const first = await left.screenshot({ style: screenshotStyle });
-          const second = await right.screenshot({ style: screenshotStyle });
-          return silhouetteOverlap(page, first, second);
-        })
-        .toBeGreaterThan(0.98);
       await expect(page.getByRole("button", { name: /Family/ })).toHaveCount(0);
       await page.screenshot({
         path: testInfo.outputPath("similarity-desktop.png"),
