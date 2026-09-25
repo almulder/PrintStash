@@ -17,68 +17,69 @@ PREVIOUS = "6f27f2e6090a"
 REMOVAL = "0b36c56fb17d"
 
 
-def test_upgrade_preserves_printable_records_with_existing_grouping(tmp_path):
-    url = f"sqlite:///{tmp_path / 'library.sqlite'}"
-    config = _alembic_config(url)
-    command.upgrade(config, PREVIOUS)
-    engine = create_engine(url)
-    try:
-        with Session(engine) as session:
-            model = build_model(session, "Original", hash="a" * 64)
-            revision = build_file(
-                session,
-                model,
-                file_type=FileType.GCODE,
-                filename="original.gcode",
-                path="/library/original.gcode",
-                size_bytes=3,
-                sha256="b" * 64,
-            )
-            job = build_print_job(session, revision)
-            multipart = build_multipart_model(session, "Printed kit")
-            now = "2026-01-01T00:00:00+00:00"
-            session.execute(
-                text("""
-                INSERT INTO model_families
-                    (name, slug, export_id, version, created_at, updated_at)
-                VALUES ('Variations', 'variations', '00000000-0000-0000-0000-000000000001',
-                        1, :now, :now)
-            """),
-                {"now": now},
-            )
-            session.execute(
-                text("""
-                INSERT INTO model_family_members
-                    (family_id, model_id, role, mirrored, mirror_verified,
-                     relative_review_required, joined_via, sort_order, created_at, updated_at)
-                VALUES (1, :model_id, 'canonical', 0, 1, 0, 'manual', 0, :now, :now)
-            """),
-                {"model_id": model.id, "now": now},
-            )
-            session.commit()
-            model_id, file_id, job_id, multipart_id = (
-                model.id,
-                revision.id,
-                job.id,
-                multipart.id,
-            )
+class TestRemoveModelFamiliesMigration:
+    def test_upgrade_preserves_printable_records_with_existing_grouping(self, tmp_path):
+        url = f"sqlite:///{tmp_path / 'library.sqlite'}"
+        config = _alembic_config(url)
+        command.upgrade(config, PREVIOUS)
+        engine = create_engine(url)
+        try:
+            with Session(engine) as session:
+                model = build_model(session, "Original", hash="a" * 64)
+                revision = build_file(
+                    session,
+                    model,
+                    file_type=FileType.GCODE,
+                    filename="original.gcode",
+                    path="/library/original.gcode",
+                    size_bytes=3,
+                    sha256="b" * 64,
+                )
+                job = build_print_job(session, revision)
+                multipart = build_multipart_model(session, "Printed kit")
+                now = "2026-01-01T00:00:00+00:00"
+                session.execute(
+                    text("""
+                    INSERT INTO model_families
+                        (name, slug, export_id, version, created_at, updated_at)
+                    VALUES ('Variations', 'variations', '00000000-0000-0000-0000-000000000001',
+                            1, :now, :now)
+                """),
+                    {"now": now},
+                )
+                session.execute(
+                    text("""
+                    INSERT INTO model_family_members
+                        (family_id, model_id, role, mirrored, mirror_verified,
+                         relative_review_required, joined_via, sort_order, created_at, updated_at)
+                    VALUES (1, :model_id, 'canonical', 0, 1, 0, 'manual', 0, :now, :now)
+                """),
+                    {"model_id": model.id, "now": now},
+                )
+                session.commit()
+                model_id, file_id, job_id, multipart_id = (
+                    model.id,
+                    revision.id,
+                    job.id,
+                    multipart.id,
+                )
 
-        command.upgrade(config, REMOVAL)
+            command.upgrade(config, REMOVAL)
 
-        tables = set(inspect(engine).get_table_names())
-        assert not tables.intersection(
-            {
-                "model_families",
-                "model_family_members",
-                "model_family_tags",
-                "model_family_stars",
-            }
-        )
-        with Session(engine) as session:
-            assert session.get(Model, model_id).name == "Original"
-            assert session.get(File, file_id).original_filename == "original.gcode"
-            assert session.get(PrintJob, job_id).model_id == model_id
-            assert session.get(MultipartModel, multipart_id).name == "Printed kit"
-            assert session.exec(select(Model.id)).all() == [model_id]
-    finally:
-        engine.dispose()
+            tables = set(inspect(engine).get_table_names())
+            assert not tables.intersection(
+                {
+                    "model_families",
+                    "model_family_members",
+                    "model_family_tags",
+                    "model_family_stars",
+                }
+            )
+            with Session(engine) as session:
+                assert session.get(Model, model_id).name == "Original"
+                assert session.get(File, file_id).original_filename == "original.gcode"
+                assert session.get(PrintJob, job_id).model_id == model_id
+                assert session.get(MultipartModel, multipart_id).name == "Printed kit"
+                assert session.exec(select(Model.id)).all() == [model_id]
+        finally:
+            engine.dispose()

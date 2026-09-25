@@ -22,17 +22,11 @@ class TestStorageImage:
         assert feature_line is not None
         assert "services-s3" in feature_line.group(1).split(",")
 
-    def test_checks_each_backend_image_on_its_native_architecture(self) -> None:
-        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/ci.yml").read_text())
-        job = next(
-            value
-            for value in workflow["jobs"].values()
-            if "matrix" in value.get("strategy", {})
-            and any(
-                row.get("image") == "printstash-api"
-                for row in value["strategy"]["matrix"].get("include", [])
-            )
+    def test_builds_each_backend_image_on_its_native_architecture(self) -> None:
+        workflow = yaml.safe_load(
+            (REPO_ROOT / ".github/workflows/container-publish.yml").read_text()
         )
+        job = workflow["jobs"]["build"]
         images = [
             row
             for row in job["strategy"]["matrix"]["include"]
@@ -45,5 +39,12 @@ class TestStorageImage:
             ("printstash-api-lite", "amd64"),
             ("printstash-api-lite", "arm64"),
         }
-        assert all(row["load"] and row["storage-smoke"] for row in images)
-        assert any("test.sh image" in step.get("run", "") for step in job["steps"])
+        assert all(
+            row["runner"]
+            == ("ubuntu-latest" if row["arch"] == "amd64" else "ubuntu-24.04-arm")
+            and row["platform"] == f"linux/{row['arch']}"
+            for row in images
+        )
+        assert any(
+            "test-unified-image.sh" in step.get("run", "") for step in job["steps"]
+        )

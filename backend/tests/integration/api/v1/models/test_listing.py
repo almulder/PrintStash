@@ -29,12 +29,11 @@ PRINTER_FILTERS = [
 ]
 
 
-def test_removed_grouping_route_is_unavailable(
-    client: TestClient, auth_headers
-) -> None:
-    response = client.get("/api/v1/families", headers=auth_headers)
+class TestRemovedGroupingRoute:
+    def test_is_unavailable(self, client: TestClient, auth_headers) -> None:
+        response = client.get("/api/v1/families", headers=auth_headers)
 
-    assert response.status_code == 404
+        assert response.status_code == 404
 
 
 @pytest.fixture
