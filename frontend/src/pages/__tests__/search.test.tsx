@@ -37,6 +37,27 @@ describe("Search results", () => {
     expect(app.requests().some((request) => request.url.startsWith("/api/v1/search?"))).toBe(false);
     expect(app.requestsWithMethod("POST")).toHaveLength(0);
   });
+  it("runs a filter-only search", async () => {
+    const app = results({ at: "/search?favorites=true" });
+    expect(await screen.findByRole("link", { name: "Desk bracket" })).toBeVisible();
+    const request = app.requests().find(({ url }) => url.startsWith("/api/v1/search?"));
+    const query = new URL(request?.url ?? "/api/v1/search", "http://localhost").searchParams;
+    expect(query.get("q")).toBe("");
+    expect(JSON.parse(query.get("filters") ?? "{}")).toMatchObject({ favorites: true });
+  });
+  it("offers a next step when a keyword search finds nothing", async () => {
+    results({ routes: { "GET /api/v1/search?": json(searchResponse()) } });
+    expect(await screen.findByText("No results")).toBeVisible();
+    expect(screen.getByText("Try another description or fewer filters.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
+  it("explains AI filter interpretation failure", async () => {
+    results({ at: "/search?q=bracket&parse_error=1" });
+    expect(
+      await screen.findByText("Could not interpret the filters. Searching your original text."),
+    ).toBeVisible();
+    expect(await screen.findByRole("link", { name: "Desk bracket" })).toBeVisible();
+  });
   it("keeps result type filters visible", async () => {
     results();
     await screen.findByRole("link", { name: "Desk bracket" });
