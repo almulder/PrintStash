@@ -91,9 +91,18 @@ export default function GettingStartedPage() {
     router.push("/");
   }
   const uploading = task?.status === "running" || task?.status === "pending";
+  // The owner provisioned from VAULT_SETUP_ADMIN_* is still on the storage step.
+  const choosing = storage === "choose";
+  const headingKey = choosing
+    ? "setup.files"
+    : folder
+      ? "setup.connect"
+      : models.length
+        ? "setup.firstSuccess"
+        : "setup.firstTitle";
   if (!user?.is_superuser) return null;
   return (
-    <SetupFrame step={storage === "choose" ? 2 : 3}>
+    <SetupFrame step={choosing ? 2 : 3}>
       <div className="space-y-6">
         {folder && (
           <Button
@@ -119,17 +128,9 @@ export default function GettingStartedPage() {
             tabIndex={-1}
             className="text-2xl font-bold tracking-tight outline-none sm:text-3xl"
           >
-            {t(
-              storage === "choose"
-                ? "setup.files"
-                : folder
-                  ? "setup.connect"
-                  : models.length
-                    ? "setup.firstSuccess"
-                    : "setup.firstTitle",
-            )}
+            {t(headingKey)}
           </h2>
-          {!folder && storage !== "choose" && (
+          {!folder && !choosing && (
             <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
               {t(models.length ? "setup.successHelp" : "setup.startHelp")}
             </p>
@@ -146,7 +147,7 @@ export default function GettingStartedPage() {
             </Button>
           </div>
         )}
-        {storage === "choose" ? (
+        {choosing ? (
           <SetupStorageChoice onPrepared={() => void handlePrepared()} />
         ) : storage !== "ready" ? (
           <div role="status" className="space-y-3 rounded-md bg-muted p-4 text-sm leading-relaxed">
@@ -291,7 +292,7 @@ export default function GettingStartedPage() {
           </>
         )}
         {/* Deferring is not offered before storage exists: every page leads back here. */}
-        {!folder && storage !== "choose" && (
+        {!folder && !choosing && (
           <footer className="border-t border-border pt-5">
             {models.length ? (
               <details>

@@ -1,4 +1,8 @@
-"""Choosing storage after the first owner already exists.
+"""Storage preparation for an installation's first owner.
+
+Validation runs before anything is persisted, because a vault directory that already
+holds someone's model library is not an empty blob store, and roots that overlap —
+directly or through a symlink — would let one subsystem delete another's files.
 
 An owner provisioned from ``VAULT_SETUP_ADMIN_*`` signs in before any storage has
 been chosen, so the choice the browser wizard makes in one request happens here in a
@@ -12,6 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlmodel import Session
@@ -49,6 +54,191 @@ def _local_choice(root: Path) -> SetupStorageRequest:
         data_dir=str(root / "chosen-files"),
         thumb_dir=str(root / "chosen-thumbs"),
     )
+
+
+def _hostile_path(failing_call: str):
+    """A ``Path`` stand-in whose *one* named call fails the way a bad mount does.
+
+    ``pathlib.Path`` cannot be subclassed usefully on 3.11, and a real filesystem
+    cannot be made to refuse ``mkdir`` or ``iterdir`` on demand, so this delegates
+    everything except the call under test.
+    """
+
+    class _HostilePath:
+        def __init__(self, *parts: Any) -> None:
+            self._path = Path(*parts)
+
+        def _wrap(self, path: Path) -> "_HostilePath":
+            return _HostilePath(path)
+
+        def resolve(self, *args: Any, **kwargs: Any) -> "_HostilePath":
+            if failing_call == "resolve":
+                raise OSError("cannot resolve")
+            return self._wrap(self._path.resolve(*args, **kwargs))
+
+        def expanduser(self) -> "_HostilePath":
+            return self._wrap(self._path.expanduser())
+
+        def mkdir(self, *args: Any, **kwargs: Any) -> None:
+            if failing_call == "mkdir":
+                raise OSError("read-only filesystem")
+            self._path.mkdir(*args, **kwargs)
+
+        def iterdir(self):
+            if failing_call == "iterdir":
+                raise OSError("cannot list")
+            return self._path.iterdir()
+
+        def unlink(self, *args: Any, **kwargs: Any) -> None:
+            if failing_call == "unlink":
+                raise OSError("cannot unlink")
+            self._path.unlink(*args, **kwargs)
+
+        def exists(self) -> bool:
+            return self._path.exists()
+
+        def is_dir(self) -> bool:
+            return self._path.is_dir()
+
+        def __truediv__(self, other: Any) -> "_HostilePath":
+            return self._wrap(self._path / other)
+
+        def __fspath__(self) -> str:
+            return str(self._path)
+
+        def __str__(self) -> str:
+            return str(self._path)
+
+    return _HostilePath
+
+
+LOCAL = SetupStorageRequest(storage_backend="local")
+
+
+class TestPrepare:
+    def test_resolves_the_deployment_roots_for_a_blank_choice(
+        self, db_session: Session, runtime_dirs: Path
+    ) -> None:
+        # The browser omits unchanged defaults, so the *effective* paths are
+        # prepared — not only explicit overrides.
+        prepared = setup_storage.prepare(LOCAL, db_session, provision=True)
+
+        assert prepared.data_dir == str((runtime_dirs / "files").resolve())
+
+    def test_refuses_a_populated_vault_directory(self, db_session: Session) -> None:
+        existing = Path(_overlay["data_dir"]) / "Jonathan" / "part.stl"
+        existing.parent.mkdir(parents=True)
+        existing.write_bytes(b"user-owned")
+
+        with pytest.raises(OperationError, match="^data_dir_not_empty$"):
+            setup_storage.prepare(LOCAL, db_session, provision=True)
+
+    def test_leaves_a_populated_directory_untouched(self, db_session: Session) -> None:
+        existing = Path(_overlay["data_dir"]) / "Jonathan" / "part.stl"
+        existing.parent.mkdir(parents=True)
+        existing.write_bytes(b"user-owned")
+
+        with pytest.raises(OperationError):
+            setup_storage.prepare(LOCAL, db_session, provision=True)
+
+        assert existing.read_bytes() == b"user-owned"
+
+    def test_refuses_nested_storage_roots(
+        self, db_session: Session, runtime_dirs: Path
+    ) -> None:
+        shared = runtime_dirs / "shared"
+        nested = SetupStorageRequest(
+            storage_backend="local",
+            data_dir=str(shared),
+            thumb_dir=str(shared / "thumbs"),
+        )
+
+        with pytest.raises(OperationError, match="^storage_paths_overlap$"):
+            setup_storage.prepare(nested, db_session, provision=True)
+
+    def test_refuses_roots_aliased_by_a_symlink(
+        self, db_session: Session, runtime_dirs: Path
+    ) -> None:
+        shared = runtime_dirs / "shared"
+        shared.mkdir()
+        alias = runtime_dirs / "alias"
+        alias.symlink_to(shared, target_is_directory=True)
+        aliased = SetupStorageRequest(
+            storage_backend="local", data_dir=str(shared), thumb_dir=str(alias)
+        )
+
+        with pytest.raises(OperationError, match="^storage_paths_overlap$"):
+            setup_storage.prepare(aliased, db_session, provision=True)
+
+    @pytest.mark.parametrize("managed_root", ["staging_dir", "backup_dir"], ids=str)
+    def test_refuses_a_root_that_swallows_a_managed_scratch_root(
+        self, db_session: Session, managed_root: str
+    ) -> None:
+        swallowing = SetupStorageRequest(
+            storage_backend="local", data_dir=str(_overlay[managed_root])
+        )
+
+        with pytest.raises(OperationError, match="^storage_paths_overlap$"):
+            setup_storage.prepare(swallowing, db_session, provision=True)
+
+    def test_refuses_a_root_that_swallows_the_database_file(
+        self, db_session: Session, runtime_dirs: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A vault root containing the SQLite file would put the database inside the
+        # blob store the GC walks.
+        monkeypatch.setitem(
+            _overlay, "db_url", f"sqlite:///{runtime_dirs / 'files' / 'vault.sqlite'}"
+        )
+
+        with pytest.raises(OperationError, match="^storage_paths_overlap$"):
+            setup_storage.prepare(LOCAL, db_session, provision=True)
+
+    @pytest.mark.parametrize(
+        ("failing_call", "detail"),
+        [
+            pytest.param("resolve", "invalid_data_dir_path", id="unresolvable"),
+            pytest.param("mkdir", "data_dir_not_creatable", id="not-creatable"),
+            pytest.param("iterdir", "data_dir_not_readable", id="not-readable"),
+        ],
+    )
+    def test_reports_a_root_the_filesystem_refuses(
+        self,
+        db_session: Session,
+        monkeypatch: pytest.MonkeyPatch,
+        failing_call: str,
+        detail: str,
+    ) -> None:
+        # A real filesystem cannot be made to fail these on demand, so only the one
+        # call under test is stood in for — bound in this module's namespace, so the
+        # pathlib.Path every other module holds is untouched.
+        monkeypatch.setattr(setup_storage, "Path", _hostile_path(failing_call))
+
+        with pytest.raises(OperationError, match=f"^{detail}$"):
+            setup_storage.prepare(LOCAL, db_session, provision=True)
+
+    def test_accepts_a_root_whose_write_probe_cannot_be_removed(
+        self, db_session: Session, monkeypatch: pytest.MonkeyPatch, runtime_dirs: Path
+    ) -> None:
+        # Probe cleanup is best-effort: a filesystem that refuses the unlink must not
+        # fail an otherwise valid setup.
+        monkeypatch.setattr(setup_storage, "Path", _hostile_path("unlink"))
+
+        prepared = setup_storage.prepare(LOCAL, db_session, provision=True)
+
+        assert prepared.storage_backend == "local"
+
+    def test_refuses_a_read_only_root(
+        self, db_session: Session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def read_only_mount(*_args: object, **_kwargs: object):
+            raise PermissionError("read-only mount")
+
+        monkeypatch.setattr(
+            setup_storage.tempfile, "NamedTemporaryFile", read_only_mount
+        )
+
+        with pytest.raises(OperationError, match="^data_dir_not_writable$"):
+            setup_storage.prepare(LOCAL, db_session, provision=True)
 
 
 class TestChoiceRequired:

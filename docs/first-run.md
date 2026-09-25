@@ -67,7 +67,10 @@ environment:
 At startup, an installation without an owner creates that administrator. Sign in
 with those credentials. PrintStash then opens the **Your files** step, because no
 storage has been chosen yet; choose it there to finish setup. The choice is checked
-before it is saved, so a mistyped remote setting can be corrected.
+before it is saved, so a mistyped remote setting can be corrected. If the deployment
+already selects storage through environment variables (for example
+`VAULT_STORAGE_PROVIDER`), that selection counts as the choice and PrintStash only
+prepares it.
 
 These variables are consumed once. They never change an existing account, so
 editing the password in an install form later does not change the account's

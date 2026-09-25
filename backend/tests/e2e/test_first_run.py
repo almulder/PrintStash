@@ -13,9 +13,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from pydantic import SecretStr
 
-from app.core.config import _overlay
 from app.modules.administration.setup_bootstrap import provision_from_environment
 from tests.paths import FIXTURES_DIR
 
@@ -39,11 +37,10 @@ class TestEnvironmentAdministrator:
     @pytest.mark.critical
     @pytest.mark.asyncio
     async def test_environment_administrator_reaches_a_first_model(
-        self, api, e2e_db, monkeypatch: pytest.MonkeyPatch
+        self, api, e2e_db, environment_admin
     ) -> None:
         # ── Startup provisions the owner (the lifespan is not run over ASGI) ──
-        monkeypatch.setitem(_overlay, "setup_admin_username", USERNAME)
-        monkeypatch.setitem(_overlay, "setup_admin_password", SecretStr(PASSWORD))
+        environment_admin(USERNAME, PASSWORD)
         assert provision_from_environment(e2e_db) is not None
         status = (await api.get("/api/v1/setup/status")).json()
         assert status["storage_choice_required"] is True, status

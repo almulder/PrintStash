@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/locale";
+import type { SetupStatus } from "@/types";
 
 /**
  * Why this browser cannot claim the installation, and every way out.
@@ -15,7 +16,7 @@ export function SetupUnavailable({
   host,
   onRetry,
 }: {
-  reason: "disabled" | "untrusted_host";
+  reason: NonNullable<SetupStatus["unavailable_reason"]>;
   host: string;
   onRetry: () => void;
 }) {

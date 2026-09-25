@@ -111,9 +111,11 @@ def provision_from_environment(session: Session) -> User | None:
     """
     username = settings.setup_admin_username.strip()
     password = settings.setup_admin_password.get_secret_value()
-    if not username and not password:
+    # A blank form field is unset. Spaces inside a real password are kept.
+    password_set = bool(password.strip())
+    if not username and not password_set:
         return None
-    if not username or not password:
+    if not username or not password_set:
         logger.error(
             "VAULT_SETUP_ADMIN_USERNAME and VAULT_SETUP_ADMIN_PASSWORD must both be "
             "set; no administrator was provisioned"

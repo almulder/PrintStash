@@ -15,14 +15,12 @@ from typing import Iterator
 import pytest
 from fastapi.testclient import TestClient
 from psycopg.errors import LockNotAvailable
-from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.schema import CreateSchema, DropSchema
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.core.config import _overlay
 from app.core.errors import ErrorKind, OperationError
 from app.db.models import SystemConfig, User
 from app.db.url import normalize_database_url
@@ -111,25 +109,11 @@ class TestFirstOwnerConcurrency:
             engine.dispose()
 
 
-@pytest.fixture
-def environment_admin(monkeypatch: pytest.MonkeyPatch):
-    """Set ``VAULT_SETUP_ADMIN_*`` the way an install form would."""
-
-    def configure(
-        username: str = ENV_USERNAME, password: str = ENV_PASSWORD, email: str = ""
-    ) -> None:
-        monkeypatch.setitem(_overlay, "setup_admin_username", username)
-        monkeypatch.setitem(_overlay, "setup_admin_password", SecretStr(password))
-        monkeypatch.setitem(_overlay, "setup_admin_email", email)
-
-    return configure
-
-
 class TestProvisionFromEnvironment:
     def test_creates_a_superuser_from_the_variables(
         self, db_session: Session, environment_admin
     ) -> None:
-        environment_admin()
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -139,7 +123,7 @@ class TestProvisionFromEnvironment:
     def test_provisioned_owner_signs_in_with_the_password(
         self, client: TestClient, db_session: Session, environment_admin
     ) -> None:
-        environment_admin()
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
         setup_bootstrap.provision_from_environment(db_session)
 
         response = client.post(
@@ -152,14 +136,14 @@ class TestProvisionFromEnvironment:
     def test_records_the_optional_email(
         self, db_session: Session, environment_admin
     ) -> None:
-        environment_admin(email=" owner@example.test ")
+        environment_admin(ENV_USERNAME, ENV_PASSWORD, email=" owner@example.test ")
 
         setup_bootstrap.provision_from_environment(db_session)
 
         assert db_session.exec(select(User)).one().email == "owner@example.test"
 
     def test_trims_the_username(self, db_session: Session, environment_admin) -> None:
-        environment_admin(username=f"  {ENV_USERNAME}  ")
+        environment_admin(f"  {ENV_USERNAME}  ", ENV_PASSWORD)
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -168,7 +152,7 @@ class TestProvisionFromEnvironment:
     def test_closes_first_ownership(
         self, db_session: Session, environment_admin
     ) -> None:
-        environment_admin()
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -177,7 +161,7 @@ class TestProvisionFromEnvironment:
     def test_leaves_storage_for_the_owner_to_choose(
         self, db_session: Session, environment_admin
     ) -> None:
-        environment_admin()
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -188,13 +172,13 @@ class TestProvisionFromEnvironment:
         ("username", "password"),
         [
             pytest.param("", "", id="unset"),
-            pytest.param("   ", "", id="blank-form-fields"),
+            pytest.param("   ", "   ", id="blank-form-fields"),
         ],
     )
     def test_does_nothing_without_the_variables(
         self, db_session: Session, environment_admin, username: str, password: str
     ) -> None:
-        environment_admin(username=username, password=password)
+        environment_admin(username, password)
 
         result = setup_bootstrap.provision_from_environment(db_session)
 
@@ -204,23 +188,46 @@ class TestProvisionFromEnvironment:
         ("username", "password"),
         [
             pytest.param(ENV_USERNAME, "", id="username-only"),
+            pytest.param(ENV_USERNAME, "   ", id="blank-password"),
             pytest.param("", ENV_PASSWORD, id="password-only"),
         ],
     )
     def test_refuses_half_a_credential(
-        self,
-        db_session: Session,
-        environment_admin,
-        caplog: pytest.LogCaptureFixture,
-        username: str,
-        password: str,
+        self, db_session: Session, environment_admin, username: str, password: str
     ) -> None:
-        environment_admin(username=username, password=password)
+        environment_admin(username, password)
 
         setup_bootstrap.provision_from_environment(db_session)
 
         assert db_session.exec(select(User)).all() == []
+
+    def test_explains_half_a_credential_in_the_log(
+        self,
+        db_session: Session,
+        environment_admin,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        environment_admin(ENV_USERNAME, "")
+
+        setup_bootstrap.provision_from_environment(db_session)
+
         assert "must both be set" in caplog.text
+
+    @pytest.mark.parametrize(
+        ("username", "password"),
+        [
+            pytest.param("ab", ENV_PASSWORD, id="short-username"),
+            pytest.param(ENV_USERNAME, "short", id="short-password"),
+        ],
+    )
+    def test_rejects_a_credential_below_the_wizard_minimum(
+        self, db_session: Session, environment_admin, username: str, password: str
+    ) -> None:
+        environment_admin(username, password)
+
+        setup_bootstrap.provision_from_environment(db_session)
+
+        assert db_session.exec(select(User)).all() == []
 
     @pytest.mark.parametrize(
         ("username", "password", "field"),
@@ -229,7 +236,7 @@ class TestProvisionFromEnvironment:
             pytest.param(ENV_USERNAME, "short", "password", id="short-password"),
         ],
     )
-    def test_rejects_a_credential_below_the_wizard_minimum(
+    def test_names_the_rejected_field_in_the_log(
         self,
         db_session: Session,
         environment_admin,
@@ -238,11 +245,10 @@ class TestProvisionFromEnvironment:
         password: str,
         field: str,
     ) -> None:
-        environment_admin(username=username, password=password)
+        environment_admin(username, password)
 
         setup_bootstrap.provision_from_environment(db_session)
 
-        assert db_session.exec(select(User)).all() == []
         assert f"rejected ({field})" in caplog.text
 
     def test_never_logs_a_rejected_password(
@@ -252,7 +258,7 @@ class TestProvisionFromEnvironment:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         # A validation error echoes its input; the log must name the field only.
-        environment_admin(password="leak-me")
+        environment_admin(ENV_USERNAME, "leak-me")
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -264,7 +270,7 @@ class TestProvisionFromEnvironment:
         environment_admin,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        environment_admin()
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -274,7 +280,7 @@ class TestProvisionFromEnvironment:
         self, db_session: Session, make_user, environment_admin
     ) -> None:
         make_user("existing-owner", superuser=True)
-        environment_admin()
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -285,9 +291,9 @@ class TestProvisionFromEnvironment:
     def test_never_resets_the_provisioned_password_on_a_later_start(
         self, client: TestClient, db_session: Session, environment_admin
     ) -> None:
-        environment_admin()
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
         setup_bootstrap.provision_from_environment(db_session)
-        environment_admin(password="EditedInTheStoreForm456")
+        environment_admin(ENV_USERNAME, "EditedInTheStoreForm456")
 
         setup_bootstrap.provision_from_environment(db_session)
 
@@ -298,11 +304,11 @@ class TestProvisionFromEnvironment:
         assert response.status_code == 200, response.text
 
     def test_leaves_a_completed_installation_without_users_closed(
-        self, db_session: Session, environment_admin
+        self, db_session: Session, environment_admin, make_system_config
     ) -> None:
         # A completion marker never reopens first ownership, from either door.
-        runtime_config.mark_configured(db_session)
-        environment_admin()
+        make_system_config(configured_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        environment_admin(ENV_USERNAME, ENV_PASSWORD)
 
         result = setup_bootstrap.provision_from_environment(db_session)
 

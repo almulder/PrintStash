@@ -40,12 +40,6 @@ from app.schemas.setup import SetupStorageCheck, SetupStorageRequest
 logger = get_logger(__name__)
 
 
-class StorageEnrollmentError(RuntimeError):
-    """The chosen local roots could not be enrolled for this installation."""
-
-    detail = "storage_root_enrollment_failed"
-
-
 @dataclass(frozen=True)
 class PreparedStorage:
     requested_provider: StorageProviderConfig | None
@@ -369,6 +363,30 @@ def choose(session: Session, body: SetupStorageRequest) -> None:
     )
 
 
+def prepare_pending(session: Session, body: SetupStorageRequest | None) -> None:
+    """Finish storage for a signed-in owner, choosing it first when nobody has.
+
+    Without a choice this retries an activation that failed after the choice was
+    persisted. An owner provisioned from ``VAULT_SETUP_ADMIN_*`` has nothing to
+    retry, so finishing would activate unpinned environment defaults nobody chose;
+    that is refused rather than guessed. An empty body counts as no choice.
+    """
+    config = runtime_config.get_config(session)
+    if config.configured_at is None:
+        raise OperationError("setup_not_completed", kind=ErrorKind.CONFLICT)
+    if body is not None and body.model_fields_set:
+        choose(session, body)
+    elif choice_required(config):
+        raise OperationError("setup_storage_choice_required", kind=ErrorKind.CONFLICT)
+    elif config.setup_storage_pending:
+        finish(session, config)
+
+
+def _enrollment_failed() -> OperationError:
+    # Retryable: the account and the choice are kept, and the owner retries.
+    return OperationError("storage_root_enrollment_failed", kind=ErrorKind.UNAVAILABLE)
+
+
 def remote_backend(
     provider: StorageProviderConfig | None, legacy: SetupStorageRequest | None = None
 ):
@@ -421,7 +439,7 @@ def finish(session: Session, config: SystemConfig) -> None:
                 proofs=[],
                 allow_empty=True,
             ):
-                raise StorageEnrollmentError(StorageEnrollmentError.detail)
+                raise _enrollment_failed()
 
         # Startup deliberately bound a recovery-mode adapter while these roots
         # were still unowned. Replace that snapshot now so the first upload
@@ -429,7 +447,7 @@ def finish(session: Session, config: SystemConfig) -> None:
         active_backend = LocalStorageBackend()
         active_backend.ensure_setup()
         if active_backend.recovery_mode:
-            raise StorageEnrollmentError(StorageEnrollmentError.detail)
+            raise _enrollment_failed()
         bind_backend(active_backend)
     else:
         from app.modules.storage.storage_backend.runtime import bind_backend

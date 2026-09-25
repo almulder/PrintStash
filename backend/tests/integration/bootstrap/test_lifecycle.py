@@ -18,7 +18,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
-from pydantic import SecretStr
 from sqlmodel import select
 from starlette.requests import Request as StarletteRequest
 
@@ -505,20 +504,6 @@ class TestSafeDbUrl:
 
 
 @pytest.fixture
-def environment_admin(monkeypatch: pytest.MonkeyPatch):
-    """``VAULT_SETUP_ADMIN_*`` as the environment sets it; startup clears the overlay."""
-
-    def configure() -> None:
-        frozen = lifecycle.settings._frozen  # noqa: SLF001
-        monkeypatch.setattr(frozen, "setup_admin_username", "store-owner")
-        monkeypatch.setattr(
-            frozen, "setup_admin_password", SecretStr("StoreFormPassword123")
-        )
-
-    return configure
-
-
-@pytest.fixture
 def startup_until_storage_binding(monkeypatch: pytest.MonkeyPatch):
     """Run startup up to storage binding and report the accounts it left behind."""
     from app.modules.storage import storage_paths
@@ -645,7 +630,7 @@ class TestLifespan:
     async def test_provisions_the_environment_administrator_before_binding_storage(
         self, db_session, environment_admin, startup_until_storage_binding
     ) -> None:
-        environment_admin()
+        environment_admin("store-owner", "StoreFormPassword123")
 
         users = await startup_until_storage_binding(restore=False)
 
@@ -656,7 +641,7 @@ class TestLifespan:
         self, db_session, environment_admin, startup_until_storage_binding
     ) -> None:
         # A restore is rebuilding the database the owner would be written to.
-        environment_admin()
+        environment_admin("store-owner", "StoreFormPassword123")
 
         users = await startup_until_storage_binding(restore=True)
 

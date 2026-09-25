@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Depends, Request, Response, status
 from sqlmodel import Session, select
 
 from app.api import setup_session
@@ -149,20 +149,7 @@ def prepare_storage(
     Deliberately not origin-gated: a signed-in owner is already trusted, and this
     is the path that works behind a proxy that rewrites ``Host``.
     """
-    config = runtime_config.get_config(session)
-    if config.configured_at is None:
-        raise HTTPException(409, "setup_not_completed")
-    try:
-        if body is not None and body.model_fields_set:
-            setup_storage.choose(session, body)
-        elif setup_storage.choice_required(config):
-            raise HTTPException(409, "setup_storage_choice_required")
-        elif config.setup_storage_pending:
-            setup_storage.finish(session, config)
-    except setup_storage.StorageEnrollmentError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=exc.detail
-        ) from exc
+    setup_storage.prepare_pending(session, body)
     return SetupCheckResponse(
         ready=True,
         storage_provider=str(settings.storage_backend),

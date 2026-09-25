@@ -6,11 +6,14 @@ being a takeover: the browser preparation session, the refusal to run twice,
 and the refusal to run at all once a user exists. If any of them regresses, anyone who can
 reach the port can seize an established vault, so those rows are the point of this file.
 
-The storage validation is the other half. It runs *before* the database is touched,
-because a vault directory that already holds someone's model library is not an empty
-blob store, and roots that overlap — directly or through a symlink — would let one
-subsystem delete another's files. Every rejection asserts that no user was created, not
-just that the status code was 400.
+Storage validation itself lives in ``modules.administration.setup_storage`` and is
+tested there. What this file keeps is its HTTP half: a refusal reaches the browser as
+a 400 with its detail code, and it arrives *before* the database is touched, so no
+user is created — not just a status code.
+
+``prepare-storage`` is the one setup route an authenticated owner uses: it retries
+storage that failed to activate, and lets an owner provisioned from
+``VAULT_SETUP_ADMIN_*`` choose storage after signing in, from any host.
 """
 
 from __future__ import annotations
@@ -103,62 +106,6 @@ def _sftp_payload(**overrides: Any) -> dict[str, Any]:
     )
     body.update(overrides)
     return body
-
-
-def _hostile_path(failing_call: str):
-    """A ``Path`` stand-in whose *one* named call fails the way a bad mount does.
-
-    ``pathlib.Path`` cannot be subclassed usefully on 3.11, and a real filesystem
-    cannot be made to refuse ``mkdir`` or ``iterdir`` on demand, so this delegates
-    everything except the call under test.
-    """
-
-    class _HostilePath:
-        def __init__(self, *parts: Any) -> None:
-            self._path = Path(*parts)
-
-        def _wrap(self, path: Path) -> "_HostilePath":
-            return _HostilePath(path)
-
-        def resolve(self, *args: Any, **kwargs: Any) -> "_HostilePath":
-            if failing_call == "resolve":
-                raise OSError("cannot resolve")
-            return self._wrap(self._path.resolve(*args, **kwargs))
-
-        def expanduser(self) -> "_HostilePath":
-            return self._wrap(self._path.expanduser())
-
-        def mkdir(self, *args: Any, **kwargs: Any) -> None:
-            if failing_call == "mkdir":
-                raise OSError("read-only filesystem")
-            self._path.mkdir(*args, **kwargs)
-
-        def iterdir(self):
-            if failing_call == "iterdir":
-                raise OSError("cannot list")
-            return self._path.iterdir()
-
-        def unlink(self, *args: Any, **kwargs: Any) -> None:
-            if failing_call == "unlink":
-                raise OSError("cannot unlink")
-            self._path.unlink(*args, **kwargs)
-
-        def exists(self) -> bool:
-            return self._path.exists()
-
-        def is_dir(self) -> bool:
-            return self._path.is_dir()
-
-        def __truediv__(self, other: Any) -> "_HostilePath":
-            return self._wrap(self._path / other)
-
-        def __fspath__(self) -> str:
-            return str(self._path)
-
-        def __str__(self) -> str:
-            return str(self._path)
-
-    return _HostilePath
 
 
 class TestSetupStatus:
@@ -343,6 +290,26 @@ class TestPrepareStorage:
         assert (response.status_code, response.json()["detail"]) == (
             409,
             "setup_storage_already_chosen",
+        )
+
+    def test_reports_a_failed_activation_as_retryable(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The account and the choice are kept; the owner retries the same call.
+        monkeypatch.setattr(
+            "app.modules.storage.storage_backend.local.enroll_legacy_local_root",
+            lambda *args, **kwargs: False,
+        )
+        token = _complete(client).json()["access_token"]
+
+        response = client.post(
+            "/api/v1/setup/prepare-storage",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert (response.status_code, response.json()["detail"]) == (
+            503,
+            "storage_root_enrollment_failed",
         )
 
     def test_reports_a_refused_choice(
@@ -758,116 +725,8 @@ class TestStorageValidation:
         # validated — not only an explicit override.
         assert response.json()["detail"] == "data_dir_not_empty"
 
-    def test_leaves_a_populated_directory_untouched(self, client: TestClient) -> None:
-        existing = Path(_overlay["data_dir"]) / "Jonathan" / "part.stl"
-        existing.parent.mkdir(parents=True)
-        existing.write_bytes(b"user-owned")
-
-        _complete(client)
-
-        assert existing.read_bytes() == b"user-owned"
-
-    def test_refuses_nested_storage_roots(
-        self, client: TestClient, runtime_dirs: Path
-    ) -> None:
-        shared = runtime_dirs / "shared"
-
-        response = _complete(
-            client, data_dir=str(shared), thumb_dir=str(shared / "thumbs")
-        )
-
-        assert response.status_code == 400, response.text
-        assert response.json()["detail"] == "storage_paths_overlap"
-
-    def test_refuses_roots_aliased_by_a_symlink(
-        self, client: TestClient, runtime_dirs: Path
-    ) -> None:
-        shared = runtime_dirs / "shared"
-        shared.mkdir()
-        alias = runtime_dirs / "alias"
-        alias.symlink_to(shared, target_is_directory=True)
-
-        response = _complete(client, data_dir=str(shared), thumb_dir=str(alias))
-
-        assert response.status_code == 400, response.text
-        assert response.json()["detail"] == "storage_paths_overlap"
-
-    @pytest.mark.parametrize("managed_root", ["staging_dir", "backup_dir"], ids=str)
-    def test_refuses_a_root_that_swallows_a_managed_scratch_root(
-        self, client: TestClient, managed_root: str
-    ) -> None:
-        response = _complete(client, data_dir=str(_overlay[managed_root]))
-
-        assert response.status_code == 400, response.text
-        assert response.json()["detail"] == "storage_paths_overlap"
-
-    def test_refuses_a_root_that_swallows_the_database_file(
-        self, client: TestClient, runtime_dirs: Path
-    ) -> None:
-        # A vault root containing the SQLite file would put the database inside the
-        # blob store the GC walks.
-        _overlay["db_url"] = f"sqlite:///{runtime_dirs / 'files' / 'vault.sqlite'}"
-
-        response = _complete(client)
-
-        assert response.status_code == 400, response.text
-        assert response.json()["detail"] == "storage_paths_overlap"
-
-    @pytest.mark.parametrize(
-        ("failing_call", "detail"),
-        [
-            pytest.param("resolve", "invalid_data_dir_path", id="unresolvable"),
-            pytest.param("mkdir", "data_dir_not_creatable", id="not-creatable"),
-            pytest.param("iterdir", "data_dir_not_readable", id="not-readable"),
-        ],
-    )
-    def test_reports_a_root_the_filesystem_refuses(
-        self,
-        client: TestClient,
-        monkeypatch: pytest.MonkeyPatch,
-        failing_call: str,
-        detail: str,
-    ) -> None:
-        # A real filesystem cannot be made to fail these on demand, so only the one
-        # call under test is stood in for — bound in the storage-preparation module's
-        # namespace, so the pathlib.Path every other module holds is untouched.
-        from app.modules.administration import setup_storage
-
-        monkeypatch.setattr(setup_storage, "Path", _hostile_path(failing_call))
-
-        response = _complete(client)
-
-        assert response.status_code == 400, response.text
-        assert response.json()["detail"] == detail
-
-    def test_completes_when_the_write_probe_cannot_be_removed(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # Probe cleanup is best-effort: a filesystem that refuses the unlink must not
-        # fail an otherwise valid setup.
-        from app.modules.administration import setup_storage
-
-        monkeypatch.setattr(setup_storage, "Path", _hostile_path("unlink"))
-
-        response = _complete(client)
-
-        assert response.status_code == 201, response.text
-
-    def test_refuses_a_read_only_root(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        def read_only_mount(*_args: object, **_kwargs: object):
-            raise PermissionError("read-only mount")
-
-        monkeypatch.setattr(
-            "app.modules.administration.setup_storage.tempfile.NamedTemporaryFile",
-            read_only_mount,
-        )
-
-        response = _complete(client)
-
-        assert response.status_code == 400, response.text
-        assert response.json()["detail"] == "data_dir_not_writable"
+    # Each refusal itself is tested where the validation lives:
+    # tests/integration/modules/administration/test_setup_storage.py::TestPrepare.
 
     @pytest.mark.parametrize(
         "rejection",

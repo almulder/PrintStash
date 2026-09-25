@@ -14,8 +14,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SetupUnavailable } from "@/components/setup-unavailable";
 import { renderApp } from "@/test-support/render";
+import type { SetupStatus } from "@/types";
 
-function renderPage(reason: "disabled" | "untrusted_host", onRetry = vi.fn<() => void>()) {
+function renderPage(
+  reason: NonNullable<SetupStatus["unavailable_reason"]>,
+  onRetry = vi.fn<() => void>(),
+) {
   return renderApp(<SetupUnavailable reason={reason} host="vault.example.net" onRetry={onRetry} />);
 }
 
