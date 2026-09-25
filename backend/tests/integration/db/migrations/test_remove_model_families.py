@@ -81,5 +81,20 @@ class TestRemoveModelFamiliesMigration:
                 assert session.get(PrintJob, job_id).model_id == model_id
                 assert session.get(MultipartModel, multipart_id).name == "Printed kit"
                 assert session.exec(select(Model.id)).all() == [model_id]
+
+            command.downgrade(config, PREVIOUS)
+            tables = set(inspect(engine).get_table_names())
+            assert {
+                "model_families",
+                "model_family_members",
+                "model_family_tags",
+                "model_family_stars",
+            } <= tables
+            with Session(engine) as session:
+                assert session.exec(select(Model.id)).all() == [model_id]
+                assert session.execute(text("SELECT COUNT(*) FROM model_families")).scalar_one() == 0
+
+            command.upgrade(config, REMOVAL)
+            assert "model_families" not in inspect(engine).get_table_names()
         finally:
             engine.dispose()
