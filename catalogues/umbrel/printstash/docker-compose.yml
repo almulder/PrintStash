@@ -19,7 +19,10 @@ services:
     volumes:
       - ${APP_DATA_DIR}/data:/data
     environment:
-      VAULT_SETUP_MODE: trusted_network
+      # The credentials are always set, so browser registration stays off: if
+      # provisioning ever fails, the setup page explains why instead of letting
+      # the first visitor claim the installation.
+      VAULT_SETUP_MODE: disabled
       VAULT_RESTART_ENABLED: "true"
       # The credentials Umbrel shows on the app's page (umbrel-app.yml).
       VAULT_SETUP_ADMIN_USERNAME: admin

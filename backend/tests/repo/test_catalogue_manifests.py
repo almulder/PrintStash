@@ -36,6 +36,10 @@ MAIN_SERVICES = {
     "umbrel": (UMBREL / "docker-compose.yml", "web"),
 }
 STORES = sorted(MAIN_SERVICES)
+# Stores whose install always supplies VAULT_SETUP_ADMIN_* (required form fields on
+# Runtipi, Umbrel's per-app credentials), and those whose fields may be left blank.
+ALWAYS_PROVISIONED = ["runtipi", "umbrel"]
+OPTIONALLY_PROVISIONED = ["casaos"]
 ADMIN_SETTINGS = ["VAULT_SETUP_ADMIN_USERNAME", "VAULT_SETUP_ADMIN_PASSWORD"]
 # The limits the browser wizard and VAULT_SETUP_ADMIN_* validation enforce.
 WIZARD_LIMITS = SetupRequest.model_json_schema()["properties"]
@@ -70,6 +74,10 @@ class TestEveryCatalogue:
 
         assert stores == set(MAIN_SERVICES), "add the new store to MAIN_SERVICES"
 
+    def test_classifies_every_store_by_how_it_provisions_the_owner(self) -> None:
+        # Each store's setup mode follows from this, so none may be left out.
+        assert sorted(ALWAYS_PROVISIONED + OPTIONALLY_PROVISIONED) == STORES
+
     @pytest.mark.parametrize("store", STORES, ids=str)
     def test_runs_the_unified_image_at_the_app_version(self, store: str) -> None:
         image = _service(store)["image"]
@@ -87,8 +95,19 @@ class TestEveryCatalogue:
 
         assert "/data" in targets, "without /data every restart starts empty"
 
-    @pytest.mark.parametrize("store", STORES, ids=str)
-    def test_enables_first_run_on_a_trusted_network(self, store: str) -> None:
+    @pytest.mark.parametrize("store", ALWAYS_PROVISIONED, ids=str)
+    def test_keeps_browser_registration_off_when_the_owner_is_provisioned(
+        self, store: str
+    ) -> None:
+        # The owner exists before the first request, so registration would only
+        # open if provisioning failed, and then to whoever arrives first through
+        # the store's proxy. Disabled fails closed and shows the explainer.
+        assert _environment(store)["VAULT_SETUP_MODE"] == "disabled"
+
+    @pytest.mark.parametrize("store", OPTIONALLY_PROVISIONED, ids=str)
+    def test_enables_browser_registration_when_the_fields_may_be_blank(
+        self, store: str
+    ) -> None:
         assert _environment(store)["VAULT_SETUP_MODE"] == "trusted_network"
 
     @pytest.mark.parametrize("store", STORES, ids=str)

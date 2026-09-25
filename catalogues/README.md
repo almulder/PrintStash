@@ -18,9 +18,17 @@ creates the administrator once at first start (see
 [first use](../docs/first-run.md#an-administrator-from-the-deployment)). The
 administrator then signs in and chooses storage in the browser.
 
+Browser registration follows from that. Where the store always supplies the
+credentials (Runtipi, Umbrel), `VAULT_SETUP_MODE=disabled`: the owner exists
+before the first request, so registration could only open if provisioning
+failed, and then to whoever arrived first through the store's proxy. Disabled
+fails closed and the setup page explains what to fix. Where the fields may be
+blank (CasaOS, Unraid), `trusted_network` keeps browser registration from the
+local network as the fallback.
+
 `backend/tests/repo/test_catalogue_manifests.py` checks that every manifest runs
-the unified image at the current app version, persists `/data`, enables
-`trusted_network`, never passes `VAULT_JWT_SECRET`, and wires the administrator
+the unified image at the current app version, persists `/data`, uses the setup
+mode above, never passes `VAULT_JWT_SECRET`, and wires the administrator
 settings.
 
 ## Releasing
