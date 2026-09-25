@@ -136,6 +136,9 @@ image. See UPGRADE.md before pulling.**
   hidden inputs sat inside the clickable drop zone, so the folder input's click
   bubbled to the zone and the file picker opened on top of it; only drag-and-drop
   could queue a folder.
+- A fault inside the browser tab is no longer reported as "Couldn't reach the
+  server". Only real `fetch` rejections map to that message; any other `TypeError`
+  now says to reload the page, and keeps its original text for diagnostics.
 
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
