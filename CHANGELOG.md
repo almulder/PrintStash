@@ -26,7 +26,9 @@ image. See UPGRADE.md before pulling.**
   in the container, so a deployment mounts one volume. Each directory can still
   be moved on its own with its existing variable. The artifact cache and
   downloaded AI search models, previously left in the container's own layer,
-  now persist across updates.
+  now persist across updates. The Unraid template's Appdata field now says to
+  keep that folder on one pool with no second mapping inside it, so imports
+  keep hard-linking.
 
 - Model Families have been removed. Existing Models, files, G-code revisions and
   print history remain independent; existing Family relationships and covers
