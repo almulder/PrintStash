@@ -59,6 +59,7 @@ the first administrator without the browser registration step:
 
 ```yaml
 environment:
+  VAULT_SETUP_MODE: environment
   VAULT_SETUP_ADMIN_USERNAME: admin
   VAULT_SETUP_ADMIN_PASSWORD: <at least 8 characters>
   VAULT_SETUP_ADMIN_EMAIL: admin@example.net # optional
@@ -74,10 +75,25 @@ prepares it.
 
 These variables are consumed once. They never change an existing account, so
 editing the password in an install form later does not change the account's
-password; change it in Settings instead. Blank values are ignored, and a password
-shorter than 8 characters, or a username without a password, is refused with an
-error in the logs. The password is never written to the logs. This path works with
-any `VAULT_SETUP_MODE`, including `disabled`.
+password; reset it under **Settings → Users** instead. Blank values are unset.
+The password is never written to the logs.
+
+`VAULT_SETUP_MODE` and the administrator variables are checked together, while
+the installation has no owner:
+
+| Mode | Administrator variables | Result |
+| --- | --- | --- |
+| `environment` | username and password set and valid | The administrator is created at startup; the browser cannot register |
+| `environment` | missing, or below the minimums (username 3, password 8 characters) | **Misconfigured**: no administrator is created |
+| `trusted_network` | not set | Browser registration from the local network |
+| `disabled` | not set | No first-run path |
+| `trusted_network` or `disabled` | any set | **Misconfigured**: the variables would be ignored |
+
+A misconfigured installation keeps first ownership closed: no browser can
+register and no administrator is created. The setup page names the variables to
+change and both ways to fix them, and the same message is logged at startup.
+Nothing becomes claimable by whoever arrives first. Once an installation has an
+owner, the combination no longer matters.
 
 ## When the browser cannot register
 
@@ -89,6 +105,10 @@ why, names the address PrintStash saw, and lists what to change:
 - **The address is not recognised as private**: open PrintStash at its local
   network address, add the address to `VAULT_SETUP_ALLOWED_HOSTS`, or provision
   the administrator from the deployment.
+- **The administrator comes from the deployment** (`VAULT_SETUP_MODE=environment`):
+  restart PrintStash so it creates the administrator, then sign in.
+- **The first-run settings don't fit together**: the page names the variables and
+  the two fixes, as in the table above.
 
 After changing a setting, restart PrintStash and choose **Check again**.
 

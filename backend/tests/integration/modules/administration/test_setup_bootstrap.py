@@ -168,40 +168,43 @@ class TestProvisionFromEnvironment:
         config = db_session.get(SystemConfig, 1)
         assert setup_storage.choice_required(config) is True
 
-    @pytest.mark.parametrize(
-        ("username", "password"),
-        [
-            pytest.param("", "", id="unset"),
-            pytest.param("   ", "   ", id="blank-form-fields"),
-        ],
-    )
-    def test_does_nothing_without_the_variables(
-        self, db_session: Session, environment_admin, username: str, password: str
+    @pytest.mark.parametrize("mode", ["trusted_network", "disabled"], ids=str)
+    def test_does_nothing_outside_environment_mode(
+        self, db_session: Session, environment_admin, mode: str
     ) -> None:
-        environment_admin(username, password)
+        environment_admin("", "", mode=mode)
 
         result = setup_bootstrap.provision_from_environment(db_session)
 
         assert (result, db_session.exec(select(User)).all()) == (None, [])
 
+    # Which combinations are misconfigured is test_setup_policy.py's job; these
+    # rows pin what provisioning does with one: nothing, and it says why.
     @pytest.mark.parametrize(
-        ("username", "password"),
+        ("username", "password", "mode"),
         [
-            pytest.param(ENV_USERNAME, "", id="username-only"),
-            pytest.param(ENV_USERNAME, "   ", id="blank-password"),
-            pytest.param("", ENV_PASSWORD, id="password-only"),
+            pytest.param(ENV_USERNAME, "", "environment", id="missing"),
+            pytest.param(ENV_USERNAME, "short", "environment", id="invalid"),
+            pytest.param(
+                ENV_USERNAME, ENV_PASSWORD, "trusted_network", id="wrong-mode"
+            ),
         ],
     )
-    def test_refuses_half_a_credential(
-        self, db_session: Session, environment_admin, username: str, password: str
+    def test_creates_nobody_when_misconfigured(
+        self,
+        db_session: Session,
+        environment_admin,
+        username: str,
+        password: str,
+        mode: str,
     ) -> None:
-        environment_admin(username, password)
+        environment_admin(username, password, mode=mode)
 
         setup_bootstrap.provision_from_environment(db_session)
 
         assert db_session.exec(select(User)).all() == []
 
-    def test_explains_half_a_credential_in_the_log(
+    def test_logs_the_misconfiguration(
         self,
         db_session: Session,
         environment_admin,
@@ -211,45 +214,7 @@ class TestProvisionFromEnvironment:
 
         setup_bootstrap.provision_from_environment(db_session)
 
-        assert "must both be set" in caplog.text
-
-    @pytest.mark.parametrize(
-        ("username", "password"),
-        [
-            pytest.param("ab", ENV_PASSWORD, id="short-username"),
-            pytest.param(ENV_USERNAME, "short", id="short-password"),
-        ],
-    )
-    def test_rejects_a_credential_below_the_wizard_minimum(
-        self, db_session: Session, environment_admin, username: str, password: str
-    ) -> None:
-        environment_admin(username, password)
-
-        setup_bootstrap.provision_from_environment(db_session)
-
-        assert db_session.exec(select(User)).all() == []
-
-    @pytest.mark.parametrize(
-        ("username", "password", "field"),
-        [
-            pytest.param("ab", ENV_PASSWORD, "username", id="short-username"),
-            pytest.param(ENV_USERNAME, "short", "password", id="short-password"),
-        ],
-    )
-    def test_names_the_rejected_field_in_the_log(
-        self,
-        db_session: Session,
-        environment_admin,
-        caplog: pytest.LogCaptureFixture,
-        username: str,
-        password: str,
-        field: str,
-    ) -> None:
-        environment_admin(username, password)
-
-        setup_bootstrap.provision_from_environment(db_session)
-
-        assert f"rejected ({field})" in caplog.text
+        assert "first-run setup is misconfigured" in caplog.text
 
     def test_never_logs_a_rejected_password(
         self,

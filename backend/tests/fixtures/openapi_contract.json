@@ -15809,7 +15809,11 @@
               {
                 "enum": [
                   "disabled",
-                  "untrusted_host"
+                  "untrusted_host",
+                  "environment",
+                  "admin_credentials_missing",
+                  "admin_credentials_invalid",
+                  "admin_credentials_without_environment_mode"
                 ],
                 "type": "string"
               },
@@ -15818,6 +15822,20 @@
               }
             ],
             "title": "Unavailable Reason"
+          },
+          "unavailable_variables": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Variables"
           },
           "user_count": {
             "default": 0,

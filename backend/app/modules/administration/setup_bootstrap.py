@@ -1,8 +1,9 @@
 """First ownership of an installation.
 
 An installation is claimed exactly once, either from the browser (the account
-and its storage in one request) or from ``VAULT_SETUP_ADMIN_*`` at startup (the
-account only; the owner signs in and chooses storage afterwards). Both paths
+and its storage in one request) or, with ``VAULT_SETUP_MODE=environment``, from
+``VAULT_SETUP_ADMIN_*`` at startup (the account only; the owner signs in and
+chooses storage afterwards). ``setup_policy`` decides which door exists. Both paths
 serialize on the database so competing API processes cannot create two first
 administrators.
 """
@@ -11,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pydantic import ValidationError
 from sqlalchemy import text
 from sqlmodel import Session, select
 
@@ -19,7 +19,7 @@ from app.core.config import settings
 from app.core.errors import ErrorKind, OperationError
 from app.core.logging import get_logger
 from app.db.models import SystemConfig, User
-from app.modules.administration import runtime_config, setup_storage
+from app.modules.administration import runtime_config, setup_policy, setup_storage
 from app.modules.identity.auth import hash_password
 from app.schemas.setup import SetupRequest
 
@@ -104,37 +104,16 @@ def claim(session: Session, request: SetupRequest) -> Ownership:
 def provision_from_environment(session: Session) -> User | None:
     """Create the first administrator from ``VAULT_SETUP_ADMIN_*``, once.
 
-    Only an installation without an owner is provisioned; an existing account is
-    never changed, so a variable left in place cannot reset a password on the
-    next restart. Storage is not chosen here: the administrator signs in and
-    chooses it in the browser.
+    Acts only on ``VAULT_SETUP_MODE=environment``. Only an installation without an
+    owner is provisioned; an existing account is never changed, so a variable left
+    in place cannot reset a password on the next restart. Storage is not chosen
+    here: the administrator signs in and chooses it in the browser.
     """
-    username = settings.setup_admin_username.strip()
-    password = settings.setup_admin_password.get_secret_value()
-    # A blank form field is unset. Spaces inside a real password are kept.
-    password_set = bool(password.strip())
-    if not username and not password_set:
+    policy = setup_policy.current()
+    if isinstance(policy, setup_policy.Misconfigured):
+        logger.error("first-run setup is misconfigured: %s", policy.describe())
         return None
-    if not username or not password_set:
-        logger.error(
-            "VAULT_SETUP_ADMIN_USERNAME and VAULT_SETUP_ADMIN_PASSWORD must both be "
-            "set; no administrator was provisioned"
-        )
-        return None
-    try:
-        request = SetupRequest(
-            username=username,
-            password=password,
-            email=settings.setup_admin_email.strip() or None,
-        )
-    except ValidationError as exc:
-        # Name the fields only: a validation error echoes its input, and one of
-        # these inputs is the password.
-        fields = sorted({str(error["loc"][0]) for error in exc.errors()})
-        logger.error(
-            "VAULT_SETUP_ADMIN_* rejected (%s); no administrator was provisioned",
-            ", ".join(fields),
-        )
+    if not isinstance(policy, setup_policy.Environment):
         return None
     try:
         lock_installation(session)
@@ -142,7 +121,7 @@ def provision_from_environment(session: Session) -> User | None:
         session.rollback()
         logger.debug("installation already has an owner; VAULT_SETUP_ADMIN_* ignored")
         return None
-    user, _config = _stage_owner(session, request)
+    user, _config = _stage_owner(session, policy.request)
     session.commit()
     session.refresh(user)
     logger.info(

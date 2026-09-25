@@ -215,6 +215,45 @@ class TestSetupStatus:
 
         assert "unavailable_reason" not in body
 
+    def test_reports_environment_mode_as_the_reason(
+        self, client: TestClient, environment_admin
+    ) -> None:
+        # The owner is created at startup; until then the browser has no door.
+        environment_admin("store-owner", "StoreFormPassword123")
+
+        body = client.get("/api/v1/setup/status").json()
+
+        assert body["unavailable_reason"] == "environment"
+
+    def test_reports_a_misconfiguration_as_the_reason(
+        self, client: TestClient, environment_admin
+    ) -> None:
+        environment_admin("store-owner", "")
+
+        body = client.get("/api/v1/setup/status").json()
+
+        assert body["unavailable_reason"] == "admin_credentials_missing"
+
+    def test_names_the_variables_to_fix(
+        self, client: TestClient, environment_admin
+    ) -> None:
+        environment_admin("store-owner", "")
+
+        body = client.get("/api/v1/setup/status").json()
+
+        assert body["unavailable_variables"] == ["VAULT_SETUP_ADMIN_PASSWORD"]
+
+    def test_never_reports_a_credential_value(
+        self, client: TestClient, environment_admin
+    ) -> None:
+        # Credentials in the wrong mode are misconfigured, and the anonymous
+        # status may name them but must not echo them.
+        environment_admin("store-owner", "StoreFormPassword123", mode="trusted_network")
+
+        text = client.get("/api/v1/setup/status").text
+
+        assert "StoreFormPassword123" not in text
+
 
 class TestPrepareStorage:
     def test_chooses_storage_for_an_environment_owner(
@@ -885,6 +924,32 @@ class TestBrowserPreparation:
             f"http://{host}/api/v1/setup/session", headers={"Origin": f"http://{host}"}
         )
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("username", "password", "mode"),
+        [
+            pytest.param("", "", "environment", id="environment-mode"),
+            pytest.param(
+                "store-owner",
+                "StoreFormPassword123",
+                "trusted_network",
+                id="misconfigured",
+            ),
+        ],
+    )
+    def test_only_a_valid_trusted_network_policy_opens_the_browser_door(
+        self, client, environment_admin, username, password, mode
+    ):
+        # Misconfigured settings fail closed: a half-filled install form must
+        # never turn into first-come registration.
+        environment_admin(username, password, mode=mode)
+
+        response = client.post("/api/v1/setup/session")
+
+        assert (response.status_code, response.json()["detail"]) == (
+            403,
+            "setup_disabled",
+        )
 
     def test_expired_preparation_is_rejected(self, client):
         from datetime import timedelta

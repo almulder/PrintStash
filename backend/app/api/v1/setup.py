@@ -13,8 +13,6 @@ response shapes. First ownership and storage preparation are operations of
 
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import APIRouter, Body, Depends, Request, Response, status
 from sqlmodel import Session, select
 
@@ -25,7 +23,12 @@ from app.core.ratelimit import rate_limit
 from app.core.security import require_auth, require_superuser
 from app.db.models import SystemConfig, User
 from app.db.session import get_session
-from app.modules.administration import runtime_config, setup_bootstrap, setup_storage
+from app.modules.administration import (
+    runtime_config,
+    setup_bootstrap,
+    setup_policy,
+    setup_storage,
+)
 from app.modules.identity.auth import create_access_token
 from app.schemas.setup import (
     SetupCheckResponse,
@@ -35,17 +38,26 @@ from app.schemas.setup import (
     SetupStatus,
     SetupStorageCheck,
     SetupStorageRequest,
+    UnavailableReason,
 )
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
 
-def _unavailable_reason(hostname: str) -> Literal["disabled", "untrusted_host"] | None:
-    if settings.setup_mode != "trusted_network":
-        return "disabled"
+def _unavailable(hostname: str) -> tuple[UnavailableReason | None, list[str] | None]:
+    """Why this browser cannot claim the installation, and which variables to fix."""
+    policy = setup_policy.current()
+    if isinstance(policy, setup_policy.Misconfigured):
+        return policy.code, list(policy.variables)
+    if isinstance(policy, setup_policy.Environment):
+        # The owner is created at startup; unconfigured here means that start
+        # has not happened with these settings yet.
+        return "environment", None
+    if isinstance(policy, setup_policy.Disabled):
+        return "disabled", None
     if not setup_session.host_allowed(hostname):
-        return "untrusted_host"
-    return None
+        return "untrusted_host", None
+    return None, None
 
 
 @router.get("/status", response_model=SetupStatus, response_model_exclude_none=True)
@@ -68,12 +80,16 @@ def get_status(
             storage_choice_required=setup_storage.choice_required(config),
         )
     hostname = request.url.hostname or ""
-    reason = _unavailable_reason(hostname)
+    reason, variables = _unavailable(hostname)
     if reason is not None:
         # The host is the one the caller sent, echoed so the explainer can name
-        # the address PrintStash refused; it discloses nothing new.
+        # the address PrintStash refused; it discloses nothing new. Variables
+        # are names only, never values, and only while nobody owns the install.
         return SetupStatus(
-            configured=False, unavailable_reason=reason, observed_host=hostname
+            configured=False,
+            unavailable_reason=reason,
+            unavailable_variables=variables,
+            observed_host=hostname,
         )
     provider_config = runtime_config.get_sanitized_storage_provider(session)
     return SetupStatus(

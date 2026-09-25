@@ -429,8 +429,13 @@ def environment_admin(monkeypatch: pytest.MonkeyPatch):
     """
     from pydantic import SecretStr
 
-    def configure(username: str, password: str, email: str = "") -> None:
+    def configure(
+        username: str, password: str, email: str = "", mode: str = "environment"
+    ) -> None:
         frozen = settings.frozen
+        monkeypatch.setattr(frozen, "setup_mode", mode)
+        # The overlay wins over frozen settings; clear a mode another fixture set.
+        monkeypatch.delitem(_overlay, "setup_mode", raising=False)
         monkeypatch.setattr(frozen, "setup_admin_username", username)
         monkeypatch.setattr(frozen, "setup_admin_password", SecretStr(password))
         monkeypatch.setattr(frozen, "setup_admin_email", email)

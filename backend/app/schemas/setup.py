@@ -7,6 +7,19 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+UnavailableReason = Literal[
+    # Registration is off (VAULT_SETUP_MODE=disabled).
+    "disabled",
+    # The host is not recognised as part of a private network.
+    "untrusted_host",
+    # VAULT_SETUP_MODE=environment: the owner comes from the deployment.
+    "environment",
+    # VAULT_SETUP_MODE and VAULT_SETUP_ADMIN_* contradict each other.
+    "admin_credentials_missing",
+    "admin_credentials_invalid",
+    "admin_credentials_without_environment_mode",
+]
+
 
 class SetupStatus(BaseModel):
     """Reported by ``GET /api/v1/setup/status``.
@@ -21,9 +34,12 @@ class SetupStatus(BaseModel):
     # An owner exists (provisioned from VAULT_SETUP_ADMIN_*) but nobody has
     # chosen storage yet; the signed-in owner finishes it in the browser.
     storage_choice_required: bool = False
-    # Why browser registration is unavailable on an unconfigured install, and the
-    # host the caller used, so the page can say which way out applies.
-    unavailable_reason: Optional[Literal["disabled", "untrusted_host"]] = None
+    # Why browser registration is unavailable on an unconfigured install, the
+    # variables at fault when the first-run settings contradict each other (names
+    # only), and the host the caller used, so the page can say which way out
+    # applies.
+    unavailable_reason: Optional[UnavailableReason] = None
+    unavailable_variables: Optional[list[str]] = None
     observed_host: Optional[str] = None
     user_count: int = 0
     default_data_dir: Optional[str] = None

@@ -19,6 +19,7 @@ from sqlmodel import Session
 
 from app.core.config import DEFAULT_JWT_SECRET, settings
 from app.core.time import utcnow
+from app.modules.administration import setup_policy
 from app.modules.administration.setup_bootstrap import require_open
 
 COOKIE = "printstash_setup"
@@ -72,7 +73,9 @@ def host_allowed(host: str) -> bool:
 
 def require_origin(request: Request) -> None:
     """Check the browser origin against the preserved Host, including its port."""
-    if settings.setup_mode != "trusted_network":
+    # Only a valid trusted_network policy opens the browser door; environment,
+    # disabled and misconfigured settings all keep it shut.
+    if not isinstance(setup_policy.current(), setup_policy.TrustedNetwork):
         raise HTTPException(403, "setup_disabled")
     try:
         origin = urlsplit(request.headers.get("origin", ""))

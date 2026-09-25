@@ -80,7 +80,7 @@ mobile and desktop sizes. Dismissing the guide reminder is checked across reload
 and navigation between Settings and the empty library.
 
 An environment-provisioned owner (`playwright.environment-admin.config.ts`) starts
-with `VAULT_SETUP_ADMIN_*` set and browser registration disabled, as an app-store
+with `VAULT_SETUP_MODE=environment` and `VAULT_SETUP_ADMIN_*` set, as an app-store
 install form leaves it: sign in with the provisioned credentials, get redirected to
 the storage step from any page, choose storage, then upload a first Model.
 

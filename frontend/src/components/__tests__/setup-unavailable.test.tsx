@@ -3,9 +3,10 @@
  *
  * This replaced a one-line "registration is disabled" alert that gave an operator
  * nothing to act on — the dead end reported from an Unraid install in #248. Each
- * reason has to name a change the operator can make in their deployment, and the
- * environment administrator has to be offered in every case: it is the one exit
- * that works behind a proxy PrintStash cannot see through.
+ * reason has to name a change the operator can make in their deployment. When the
+ * first-run settings contradict each other, the page is the only place a
+ * one-click store install explains itself, so it must name the variables to
+ * change and both ways to fix them.
  */
 import "@testing-library/jest-dom/vitest";
 import { screen, within } from "@testing-library/react";
@@ -18,9 +19,16 @@ import type { SetupStatus } from "@/types";
 
 function renderPage(
   reason: NonNullable<SetupStatus["unavailable_reason"]>,
-  onRetry = vi.fn<() => void>(),
+  options: { variables?: string[]; onRetry?: () => void } = {},
 ) {
-  return renderApp(<SetupUnavailable reason={reason} host="vault.example.net" onRetry={onRetry} />);
+  return renderApp(
+    <SetupUnavailable
+      reason={reason}
+      host="vault.example.net"
+      variables={options.variables ?? []}
+      onRetry={options.onRetry ?? vi.fn<() => void>()}
+    />,
+  );
 }
 
 function exits() {
@@ -59,17 +67,65 @@ describe("SetupUnavailable", () => {
   });
 
   it.each([{ reason: "disabled" as const }, { reason: "untrusted_host" as const }])(
-    "offers the environment administrator for $reason",
+    "offers the environment administrator with its mode for $reason",
     ({ reason }) => {
       renderPage(reason);
 
-      expect(exits().getByText(/VAULT_SETUP_ADMIN_USERNAME=/)).toBeVisible();
+      expect(
+        exits().getByText(/VAULT_SETUP_MODE=environment\s+VAULT_SETUP_ADMIN_USERNAME=/),
+      ).toBeVisible();
     },
   );
 
+  it("explains that the deployment creates the administrator in environment mode", () => {
+    renderPage("environment");
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/creates the administrator/);
+  });
+
+  it("offers no browser exit in environment mode", () => {
+    renderPage("environment");
+
+    expect(screen.queryByRole("list", { name: "Ways to continue" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { reason: "admin_credentials_missing" as const },
+    { reason: "admin_credentials_invalid" as const },
+    { reason: "admin_credentials_without_environment_mode" as const },
+  ])("names the variables to fix for $reason", ({ reason }) => {
+    renderPage(reason, { variables: ["VAULT_SETUP_ADMIN_PASSWORD"] });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("VAULT_SETUP_ADMIN_PASSWORD");
+  });
+
+  it.each([
+    { reason: "admin_credentials_missing" as const },
+    { reason: "admin_credentials_invalid" as const },
+  ])("offers setting the credentials or registering in the browser for $reason", ({ reason }) => {
+    renderPage(reason, { variables: ["VAULT_SETUP_ADMIN_PASSWORD"] });
+
+    expect(
+      exits()
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      expect.stringContaining("VAULT_SETUP_ADMIN_PASSWORD=<your password>"),
+      expect.stringContaining("VAULT_SETUP_MODE=trusted_network"),
+    ]);
+  });
+
+  it("offers switching to environment mode for credentials in the wrong mode", () => {
+    renderPage("admin_credentials_without_environment_mode", {
+      variables: ["VAULT_SETUP_ADMIN_USERNAME"],
+    });
+
+    expect(exits().getByText("VAULT_SETUP_MODE=environment")).toBeVisible();
+  });
+
   it("checks again on request", async () => {
     const onRetry = vi.fn<() => void>();
-    renderPage("untrusted_host", onRetry);
+    renderPage("untrusted_host", { onRetry });
 
     await userEvent.click(screen.getByRole("button", { name: "Check again" }));
 

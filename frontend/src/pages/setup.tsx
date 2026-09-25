@@ -224,6 +224,7 @@ export default function SetupPage({ deps = LIVE_DEPS }: { deps?: SetupPageDeps }
         <SetupUnavailable
           reason={status.unavailable_reason ?? "disabled"}
           host={status.observed_host ?? window.location.hostname}
+          variables={status.unavailable_variables ?? []}
           onRetry={() => setBootAttempt((n) => n + 1)}
         />
       ) : (
