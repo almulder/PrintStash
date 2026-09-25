@@ -877,17 +877,21 @@ class TestGcLoop:
     async def test_gc_loop_runs_every_step_even_when_each_one_fails(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """_gc_loop runs GC, delivery pruning, and inbox pruning independently —
-        one failing must not prevent the other two from running."""
+        """A failed maintenance step does not prevent later work in the same tick."""
         import asyncio
 
-        from app.modules.ingestion import inbox
+        from app.modules.identity import auth
+        from app.modules.ingestion import artifact_uploads, inbox
         from app.modules.notifications import notifications
+        from app.modules.storage import storage_inventory
 
         monkeypatch.setattr(
             lifecycle,
             "run_scheduled_gc",
             lambda: (_ for _ in ()).throw(RuntimeError("gc fail")),
+        )
+        monkeypatch.setattr(
+            storage_inventory, "refresh_inventory_sample", lambda _: None
         )
         monkeypatch.setattr(
             notifications,
@@ -899,18 +903,25 @@ class TestGcLoop:
             "prune_history",
             lambda: (_ for _ in ()).throw(RuntimeError("history fail")),
         )
+        monkeypatch.setattr(
+            artifact_uploads,
+            "reconcile_artifact_uploads",
+            lambda: (_ for _ in ()).throw(RuntimeError("upload reconciliation fail")),
+        )
+        monkeypatch.setattr(auth, "prune_expired_refresh_tokens", lambda: None)
 
         with caplog.at_level(logging.ERROR, logger=lifecycle.logger.name):
             task = asyncio.create_task(lifecycle._gc_loop())
             # One pass runs immediately (no initial sleep). Each step is a real
             # asyncio.to_thread() round-trip, so a fixed short sleep is flaky
-            # under CI load — poll for all three log lines instead, bounded by
+            # under CI load — poll for all four log lines instead, bounded by
             # a generous timeout, before cancelling ahead of sleep(3600).
-            deadline = asyncio.get_event_loop().time() + 5
+            deadline = asyncio.get_event_loop().time() + 10
             expected = {
                 "scheduled GC failed",
                 "notification delivery pruning failed",
                 "pending import history pruning failed",
+                "artifact upload reconciliation failed",
             }
             while asyncio.get_event_loop().time() < deadline:
                 messages = [r.getMessage() for r in caplog.records]
@@ -924,6 +935,7 @@ class TestGcLoop:
         assert any("scheduled GC failed" in m for m in messages)
         assert any("notification delivery pruning failed" in m for m in messages)
         assert any("pending import history pruning failed" in m for m in messages)
+        assert any("artifact upload reconciliation failed" in m for m in messages)
 
     @pytest.mark.asyncio
     async def test_gc_loop_never_runs_storage_maintenance_when_unconfigured(
