@@ -880,13 +880,18 @@ class TestGcLoop:
         """A failed maintenance step does not prevent later work in the same tick."""
         import asyncio
 
+        from app.modules.identity import auth
         from app.modules.ingestion import artifact_uploads, inbox
         from app.modules.notifications import notifications
+        from app.modules.storage import storage_inventory
 
         monkeypatch.setattr(
             lifecycle,
             "run_scheduled_gc",
             lambda: (_ for _ in ()).throw(RuntimeError("gc fail")),
+        )
+        monkeypatch.setattr(
+            storage_inventory, "refresh_inventory_sample", lambda _: None
         )
         monkeypatch.setattr(
             notifications,
@@ -903,6 +908,7 @@ class TestGcLoop:
             "reconcile_artifact_uploads",
             lambda: (_ for _ in ()).throw(RuntimeError("upload reconciliation fail")),
         )
+        monkeypatch.setattr(auth, "prune_expired_refresh_tokens", lambda: None)
 
         with caplog.at_level(logging.ERROR, logger=lifecycle.logger.name):
             task = asyncio.create_task(lifecycle._gc_loop())
