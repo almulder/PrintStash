@@ -804,12 +804,13 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
   }, [docView]);
 
   function handleCollectionChange(path: string | null) {
+    if (path === selectedCollection) return;
     setSelectedIds(new Set());
     const params = new URLSearchParams(searchParams.toString());
     if (path) params.set("c", path);
     else params.delete("c");
     const qs = params.toString();
-    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+    router.push(qs ? `/?${qs}` : "/", { scroll: false });
   }
 
   function handleLibraryViewChange(view: LibraryViewMode) {

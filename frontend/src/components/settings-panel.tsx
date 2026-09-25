@@ -71,7 +71,6 @@ import { NotificationsPanel } from "@/components/notifications-panel";
 import { SpoolmanConnectCard } from "@/components/spoolman-connect-card";
 import { OidcSettingsCard } from "@/components/oidc-settings-card";
 import { AiSearchSettings } from "@/components/ai-search-settings";
-import { SimilaritySettingsPanel } from "@/components/similarity-settings-panel";
 import { MaintenancePanel } from "@/components/maintenance-panel";
 import { BrandMark } from "@/components/brand-mark";
 import {
@@ -2706,8 +2705,17 @@ export function SettingsPanel() {
               <div className="space-y-6 animate-panel-in">
                 <StorageConfigCard storageHealth={storageHealth} migrationManaged />
                 {user?.is_superuser && <StorageInventoryPanel />}
-                {user?.is_superuser && <ArtifactCacheCard />}
                 {user?.is_superuser && <VaultMigrationPanel />}
+                {user?.is_superuser && (
+                  <details>
+                    <summary className="cursor-pointer rounded-md px-2 py-2 text-sm font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      {uiText("Remote file cache")}
+                    </summary>
+                    <div className="mt-3">
+                      <ArtifactCacheCard />
+                    </div>
+                  </details>
+                )}
               </div>
             )}
 
@@ -3367,12 +3375,7 @@ export function SettingsPanel() {
 
             {activeSection === "ai-search" && user?.is_superuser && <AiSearchSettings />}
 
-            {activeSection === "maintenance" && user?.is_superuser && (
-              <>
-                <MaintenancePanel />
-                <SimilaritySettingsPanel />
-              </>
-            )}
+            {activeSection === "maintenance" && user?.is_superuser && <MaintenancePanel />}
 
             {activeSection === "libraries" && (
               <div className="space-y-6 animate-panel-in">

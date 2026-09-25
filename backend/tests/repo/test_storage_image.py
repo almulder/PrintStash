@@ -1,7 +1,7 @@
 """The release wheel and native image jobs cover every advertised transport.
 
 Development wheels cannot prove which services a custom release wheel compiled.
-These build contracts keep the final-image lifecycle check on both architectures.
+These build contracts keep both backend image variants on both architectures.
 """
 
 from __future__ import annotations
@@ -44,6 +44,10 @@ class TestStorageImage:
             == ("ubuntu-latest" if row["arch"] == "amd64" else "ubuntu-24.04-arm")
             and row["platform"] == f"linux/{row['arch']}"
             for row in images
+        )
+        assert any(
+            step.get("uses", "").startswith("docker/build-push-action@")
+            for step in job["steps"]
         )
         assert any(
             "test-unified-image.sh" in step.get("run", "") for step in job["steps"]

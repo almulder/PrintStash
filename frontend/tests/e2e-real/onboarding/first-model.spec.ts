@@ -130,7 +130,6 @@ test.describe("Browser onboarding", () => {
           async (route) => {
             const response = await route.fetch();
             expect(response.status()).toBe(201);
-            await page.context().clearCookies();
             await route.abort("connectionreset");
           },
           { times: 1 },
@@ -243,7 +242,11 @@ test.describe("Browser onboarding", () => {
       ).toHaveCount(0);
       await page.goto("/getting-started");
       await expect(page).toHaveURL(/\/getting-started$/);
+      await expect(
+        page.getByRole("heading", { name: "Your models are ready to explore" }),
+      ).toBeVisible();
       await page.getByRole("button", { name: "Connect an existing folder" }).press("Enter");
+      await expect(page.getByRole("heading", { name: "Connect an existing folder" })).toBeVisible();
       await page.getByLabel("Folder name").fill("My existing folder");
       await page.getByLabel("Folder path on the server").fill(sourcePath);
       await page

@@ -24,8 +24,15 @@ image. See UPGRADE.md before pulling.**
   legacy MinIO-to-SeaweedFS migration job. Container publishing no longer runs
   Grype scans; release builds and the legacy migration helper remain available.
 
+- AI Search settings now separate guided setup, search types, AI servers and
+  technical options. Search types and compatible models appear as visible choices;
+  the active search is clearly separate from a new index build. Specialist index
+  tuning has its own view; server editing and custom model choices no longer
+  depend on nested dropdown sections.
+
 ### Added
 
+- Similar models is now one click from the desktop header and one tap from the mobile navigation bar.
 - DXF files can be imported as source Artifacts, downloaded with their original
   bytes, and included in backups. Drawing previews are not yet available.
 - Managed source Artifacts can be moved to trash and restored individually from
@@ -65,6 +72,13 @@ image. See UPGRADE.md before pulling.**
   separate from verified geometry, and analysis never downloads model weights.
 
 ### Fixed
+
+- Double-clicking a collection in the library sidebar keeps that collection open
+  instead of returning to All Models.
+- Long nested collection paths stay within the upload dialog's collection selector.
+- Browser Back now returns through the Vault's collection navigation before leaving for an earlier page.
+- Model cards show the collection name in their badge instead of its full hierarchy path.
+- Long collection paths no longer push the Create Family model picker beyond the dialog edge.
 
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
@@ -162,6 +176,25 @@ image. See UPGRADE.md before pulling.**
 - Pending Imports remain readable when an older or damaged capture manifest is incomplete, without overwriting the stored capture data.
 
 ### Changed
+
+- Storage and Maintenance settings now lead with plain-language tasks, usage, and
+  library checks. Technical cache, migration, and audit controls open on demand;
+  Maintenance actions and backup verification align across narrow screens;
+  Similar Models has its own analysis and paired candidate review flow. An empty
+  audit history no longer generates a failed latest-audit request, and schedules
+  remain available if history fails to load. Collection usage now compares sizes
+  in a compact view with readable B, KB, MB, or GB units and direct Model drilldown.
+  Storage insights now highlights stored files and free space, groups usage by
+  purpose, and shows a dated history chart. File types and provider evidence remain
+  available in Measurement details with readable file-type labels. Collection
+  storage now shows recorded sizes with model counts instead of bars scaled to
+  the largest item on each page. Opening a collection now shows its models in
+  the same fixed-size Collection storage area, preserving the two-column
+  collection layout and links to Model details. Model pages fit fully above the
+  pager even for large collections. Pagination
+  shows the visible range, and recent storage activity appears directly when
+  there is something to report. Cleanup actions appear only for measured
+  candidates and lead with the reclaimable size.
 
 - The getting-started reminder can be dismissed with Don't show again. The choice
   is remembered per user in the current browser across Settings and the empty library.

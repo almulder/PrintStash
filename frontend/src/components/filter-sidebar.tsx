@@ -419,7 +419,7 @@ function CollectionTreeRow({
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => onSelect(isSelected ? null : node.cat.path)}
+              onClick={() => onSelect(node.cat.path)}
               className="flex flex-1 min-w-0 items-center gap-1.5 text-left text-sm font-medium truncate"
               title={node.cat.path}
               {...attributes}

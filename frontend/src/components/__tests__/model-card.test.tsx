@@ -70,6 +70,14 @@ afterEach(() => {
 });
 
 describe("ModelCard", () => {
+  describe("collection badge", () => {
+    it("shows only the collection name from a hierarchy path", () => {
+      renderCard({ collection: "PrintStash-Data/Workstation/Drawer-Organizer" });
+
+      expect(screen.getByText("Drawer-Organizer")).toBeVisible();
+    });
+  });
+
   describe("quick tag access", () => {
     it("offers adding tags on an editable untagged card", () => {
       renderApp(<ModelCard model={model} onEditTags={vi.fn<(item: ModelListItem) => void>()} />);
