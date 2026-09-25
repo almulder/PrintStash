@@ -24,10 +24,8 @@ export VAULT_RESTART_ENABLED="true"
 cd "$BACKEND_DIR"
 if [ -x .venv/bin/python ]; then
   PY=(.venv/bin/python)
-  ALEMBIC=(.venv/bin/alembic)
 else
   PY=(uv run python)
-  ALEMBIC=(uv run alembic)
 fi
 
 if [ -z "${VAULT_BGCODE_EXECUTABLE:-}" ]; then
@@ -35,7 +33,8 @@ if [ -z "${VAULT_BGCODE_EXECUTABLE:-}" ]; then
   export VAULT_BGCODE_EXECUTABLE
 fi
 
-"${ALEMBIC[@]}" upgrade head
+# The container's own first boot step: prepare the data root, then migrate.
+"${PY[@]}" -m app.db.migrate
 
 # Mirror the official container's restart policy so the real-browser suite can
 # exercise the Settings restart flow without weakening production behaviour.

@@ -10,7 +10,8 @@ cd "$ROOT_DIR/backend"
 mkdir -p _data/files _data/thumbs
 export VAULT_DATA_ROOT=./_data
 
-.venv/bin/alembic upgrade head
+# The container's own first boot step: prepare the data root, then migrate.
+.venv/bin/python -m app.db.migrate
 
 # Kill any existing
 pkill -f "uvicorn app.main" 2>/dev/null || true

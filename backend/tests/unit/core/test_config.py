@@ -7,13 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import (
-    DATA_ROOT_LAYOUT,
-    ConfigResolver,
-    FrozenSettings,
-    _overlay,
-    ensure_database_parent,
-)
+from app.core.config import DATA_ROOT_LAYOUT, ConfigResolver, FrozenSettings, _overlay
 
 DATA_ROOT = Path("/srv/printstash")
 POSTGRES_URL = "postgresql+psycopg://printstash:secret@postgres:5432/printstash"
@@ -167,31 +161,6 @@ class TestDefaultUnderDataRoot:
         configured = FrozenSettings(_env_file=None, data_root=DATA_ROOT)
 
         assert configured.db_url == "sqlite:////srv/printstash/db/printstash.sqlite"
-
-
-class TestEnsureDatabaseParent:
-    def test_creates_the_directory_of_a_sqlite_file(self, tmp_path: Path) -> None:
-        database = tmp_path / "data" / "db" / "printstash.sqlite"
-
-        ensure_database_parent(f"sqlite:///{database}")
-
-        assert database.parent.is_dir()
-
-    @pytest.mark.parametrize(
-        "url",
-        [
-            pytest.param(POSTGRES_URL, id="postgresql"),
-            pytest.param("sqlite:///:memory:", id="in-memory"),
-        ],
-    )
-    def test_creates_nothing_for_a_database_without_a_file(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, url: str
-    ) -> None:
-        monkeypatch.chdir(tmp_path)
-
-        ensure_database_parent(url)
-
-        assert list(tmp_path.iterdir()) == []
 
 
 class TestConfigResolver:

@@ -35,8 +35,8 @@ predictable upgrade path.
 ```bash
 cd backend
 
-# Apply the latest schema to your configured database
-uv run alembic upgrade head
+# Prepare the data root and apply the latest schema (what the container runs)
+uv run python -m app.db.migrate
 
 # Stamp an existing database that already matches the baseline
 uv run alembic stamp head
@@ -47,7 +47,7 @@ uv run alembic stamp head
 ```bash
 cd backend
 uv sync --extra dev
-uv run alembic upgrade head
+uv run python -m app.db.migrate
 uv run uvicorn app.main:app --reload
 ```
 

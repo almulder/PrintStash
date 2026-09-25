@@ -27,10 +27,9 @@ export VAULT_STORAGE_ALLOW_UNVERIFIED="true"
 
 cd "$BACKEND_DIR"
 PY=(.venv/bin/python)
-ALEMBIC=(.venv/bin/alembic)
 WSGIDAV=(.venv/bin/wsgidav)
 
-"${ALEMBIC[@]}" upgrade head
+"${PY[@]}" -m app.db.migrate
 "${WSGIDAV[@]}" \
   --host=127.0.0.1 \
   --port="$WEBDAV_PORT" \

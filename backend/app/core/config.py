@@ -501,15 +501,6 @@ def ensure_dirs(*, create_managed_roots: bool = False) -> None:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         settings.thumb_dir.mkdir(parents=True, exist_ok=True)
 
-    ensure_database_parent(settings.db_url)
-
-
-def ensure_database_parent(db_url: str) -> None:
-    """Create the directory a SQLite database file lives in; other URLs are a no-op.
-
-    The default database sits in ``<VAULT_DATA_ROOT>/db``, which a fresh root
-    does not have yet, and migrations open the file before the app starts.
-    """
-    db_path = _sqlite_db_path(db_url)
+    db_path = _sqlite_db_path(settings.db_url)
     if db_path is not None:
         db_path.parent.mkdir(parents=True, exist_ok=True)

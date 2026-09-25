@@ -29,6 +29,9 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import io
+import os
+import subprocess
+import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -46,7 +49,7 @@ from app.db import migrate as migrate_mod
 from app.db.session import _is_alembic_managed, init_db
 from tests.factories import build_user
 from tests.factories.migration_rows import seed_released_v0121_rows, seed_schema_row
-from tests.paths import ALEMBIC_DIR, ALEMBIC_INI
+from tests.paths import ALEMBIC_DIR, ALEMBIC_INI, BACKEND_DIR
 
 
 def _seeded_duplicate_defaults(tmp_path: Path) -> str:
@@ -615,17 +618,6 @@ class TestRunMigrations:
         assert _current(url) == _head_revision()
         assert {"users", "models", "files", "alembic_version"} <= _table_names(url)
 
-    def test_runner_creates_the_database_directory_of_a_fresh_data_root(
-        self, tmp_path: Path
-    ) -> None:
-        # The default SQLite file is <VAULT_DATA_ROOT>/db/printstash.sqlite, and
-        # a fresh root has no db/ until something makes it.
-        url = f"sqlite:///{tmp_path / 'data' / 'db' / 'printstash.sqlite'}"
-
-        migrate_mod.run_migrations(url)
-
-        assert _current(url) == _head_revision()
-
     def test_runner_is_idempotent_noop_at_head(self, tmp_path: Path) -> None:
         url = _url(tmp_path)
         migrate_mod.run_migrations(url)
@@ -853,6 +845,31 @@ def _rewrite_sqlite_table_definition(
         engine.dispose()
 
 
+class TestMain:
+    """`python -m app.db.migrate` is every installation's first boot step.
+
+    The container entrypoint runs it before the server, so it meets a data root
+    nothing has prepared yet: <VAULT_DATA_ROOT>/db does not exist.
+    """
+
+    def test_migrates_a_fresh_data_root_to_head(self, tmp_path: Path) -> None:
+        root = tmp_path / "data"
+
+        result = subprocess.run(
+            [sys.executable, "-m", "app.db.migrate"],
+            cwd=BACKEND_DIR,
+            env={**os.environ, "VAULT_DATA_ROOT": str(root)},
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert _current(f"sqlite:///{root / 'db' / 'printstash.sqlite'}") == (
+            _head_revision()
+        )
+
+
 # --------------------------------------------------------------------------- #
 # State dispatch: a fresh DB must NOT replay the historical migration chain
 # (its baseline is SQLite-only and fails on Postgres) — it bootstraps via
@@ -1049,19 +1066,6 @@ class TestInitDb:
 
 
 class TestUpgrade:
-    def test_alembic_upgrade_creates_the_database_directory_of_a_fresh_data_root(
-        self, tmp_path: Path
-    ) -> None:
-        # `alembic upgrade head` (dev_start.sh, the Playwright launchers) runs
-        # before the app has created <VAULT_DATA_ROOT>/db.
-        db_path = tmp_path / "data" / "db" / "printstash.sqlite"
-        cfg = Config(str(ALEMBIC_INI))
-        cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
-
-        command.upgrade(cfg, "head")
-
-        assert db_path.is_file()
-
     def test_alembic_upgrade_creates_expected_schema(
         self, tmp_path: Path, monkeypatch
     ) -> None:
