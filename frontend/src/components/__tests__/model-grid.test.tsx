@@ -601,6 +601,102 @@ describe("ModelBrowser", () => {
       );
     });
 
+    it("warms the readme of a hovered folder that has one", async () => {
+      const user = userEvent.setup();
+      const { requests } = renderVault({
+        at: "/?c=parts",
+        collections: [
+          aCollection({ id: 1, name: "Parts", path: "parts" }),
+          aCollection({
+            id: 2,
+            name: "Brackets",
+            path: "parts/brackets",
+            parent_id: 1,
+            has_readme: true,
+          }),
+        ],
+        routes: { "GET /api/v1/collections/2/readme": json({ readme: "Shelf brackets." }) },
+      });
+      await screen.findByRole("heading", { name: "Parts" });
+
+      await user.hover(folderCard("parts/brackets"));
+
+      await waitFor(() =>
+        expect(
+          requests().filter((call) => call.url.endsWith("/api/v1/collections/2/readme")),
+        ).toHaveLength(1),
+      );
+    });
+
+    it("does not re-warm the folder that is already open", async () => {
+      // Its data is on screen; the sidebar row for it is the most-hovered one.
+      const user = userEvent.setup();
+      const { requests, client } = renderVault({ at: "/?c=parts", collections: PARTS_TREE });
+      await screen.findByRole("heading", { name: "Parts" });
+      await waitFor(() =>
+        expect(requestsFor(requests, "/api/v1/models/page", "parts")).toHaveLength(1),
+      );
+      // Past production's staleTime, a prefetch of this folder would refetch it.
+      client.setDefaultOptions({ queries: { retry: false, staleTime: 0 } });
+      const outliner = screen.getByPlaceholderText("Filter outliner...").closest("aside")!;
+
+      await user.hover(within(outliner).getByTitle("Parts"));
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(requestsFor(requests, "/api/v1/models/page", "parts")).toHaveLength(1);
+    });
+
+    it("warms a folder hovered in the list view", async () => {
+      window.localStorage.setItem("ps-vault-view", "list");
+      const user = userEvent.setup();
+      const { requests } = renderVault({ at: "/?c=parts", collections: PARTS_TREE });
+      await screen.findByRole("heading", { name: "Parts" });
+
+      await user.hover(folderCard("parts/brackets"));
+
+      await waitFor(() =>
+        expect(requestsFor(requests, "/api/v1/models/page", "parts/brackets")).toHaveLength(1),
+      );
+    });
+
+    it("warms a folder focused in the list view", async () => {
+      window.localStorage.setItem("ps-vault-view", "list");
+      const { requests } = renderVault({ at: "/?c=parts", collections: PARTS_TREE });
+      await screen.findByRole("heading", { name: "Parts" });
+
+      fireEvent.focus(folderCard("parts/brackets"));
+
+      await waitFor(() =>
+        expect(requestsFor(requests, "/api/v1/models/page", "parts/brackets")).toHaveLength(1),
+      );
+    });
+
+    it("does not warm the multipart list in the parts-only view", async () => {
+      // That view lists no multipart sets, so warming them is a wasted request.
+      window.localStorage.setItem("ps-vault-library-view", "components");
+      const user = userEvent.setup();
+      const { requests } = renderVault({ at: "/?c=parts", collections: PARTS_TREE });
+      await screen.findByRole("heading", { name: "Parts" });
+
+      await user.hover(folderCard("parts/brackets"));
+
+      await waitFor(() =>
+        expect(requestsFor(requests, "/api/v1/models/page", "parts/brackets")).toHaveLength(1),
+      );
+      expect(requestsFor(requests, "/api/v1/multipart-models", "parts/brackets")).toHaveLength(0);
+    });
+
+    it("warms a folder focused in the sidebar tree", async () => {
+      const { requests } = renderVault({ collections: [aCollection()] });
+      const outliner = screen.getByPlaceholderText("Filter outliner...").closest("aside")!;
+
+      fireEvent.focus(await within(outliner).findByTitle("Parts"));
+
+      await waitFor(() =>
+        expect(requestsFor(requests, "/api/v1/models/page", "parts")).toHaveLength(1),
+      );
+    });
+
     it("does not warm folders while the user is selecting", async () => {
       // In select mode a click toggles the folder instead of opening it.
       const user = userEvent.setup();
