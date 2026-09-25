@@ -81,7 +81,7 @@ and navigation between Settings and the empty library.
 
 auth (UI login, wrong-password, username + API-key login then revoke) ·
 vault (search, tag filter, list/grid toggle, empty state, narrow responsive toolbar) · collections
-(create / nest / delete / recursive-delete non-empty from the sidebar) ·
+(create / nest / subtree count / delete / recursive-delete non-empty from the sidebar) ·
 documents (markdown editor, collection README, GFM tables) · tags (quick create/assign from a card,
 global delete) ·
 uploads (mesh-only source, BGCODE metadata, into a collection) · full backup recovery

@@ -8,6 +8,14 @@ image. See UPGRADE.md before pulling.**
 
 ### Changed
 
+- Collection tree badges now count Models in child folders, use the complete
+  total when only part of a large library is loaded, and stay visible in the
+  default sidebar width.
+
+- Storage settings now show one clear current safety state and the location,
+  while remote file cache is visible without nested dropdowns. Cache limits
+  and activity have separate views; sizes use MB or GB.
+
 - Model Families have been removed. Existing Models, files, G-code revisions and
   print history remain independent; existing Family relationships and covers
   are retired when the database migration runs. Multipart Models continue to
@@ -32,7 +40,12 @@ image. See UPGRADE.md before pulling.**
 
 ### Added
 
-- Similar models is now one click from the desktop header and one tap from the mobile navigation bar.
+- Similar models is available from the desktop library toolbar, mobile
+  navigation bar, and Model detail.
+- The search bar now uses an icon-only AI control to switch between AI and
+  keyword results. Search results use the full browsing surface with visible
+  filters and simpler result cards instead of a nested results panel. Print
+  duration filters show readable time in the results toolbar.
 - DXF files can be imported as source Artifacts, downloaded with their original
   bytes, and included in backups. Drawing previews are not yet available.
 - Managed source Artifacts can be moved to trash and restored individually from

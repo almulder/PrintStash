@@ -48,6 +48,12 @@ function bytes(value: number | null, locale: string): string {
   return formatBytes(value, locale);
 }
 
+function capacityBytes(value: number | null, locale: string): string {
+  if (value === 0) return "0 MB";
+  if (value !== null && value < 1024 ** 2) return "<1 MB";
+  return bytes(value, locale);
+}
+
 export function StorageInventoryPanel() {
   const { locale, t } = useI18n();
   const modelPageSize = useMediaQuery("(min-width: 640px)")
@@ -335,7 +341,7 @@ export function StorageInventoryPanel() {
                 {t("Files stored here")}
               </dt>
               <dd className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
-                {bytes(current.unique_owned_bytes, locale)}
+                {capacityBytes(current.unique_owned_bytes, locale)}
               </dd>
             </div>
             <div className="border-r px-4 py-4">
@@ -344,7 +350,7 @@ export function StorageInventoryPanel() {
                 {t("Free space")}
               </dt>
               <dd className="mt-2 text-xl font-semibold tracking-tight tabular-nums">
-                {bytes(availableBytes, locale)}
+                {capacityBytes(availableBytes, locale)}
               </dd>
               <p
                 className={`mt-1 text-xs ${capacityStatus === "blocked" ? "text-destructive" : capacityStatus === "available" ? "text-success" : "text-muted-foreground"}`}
@@ -362,7 +368,7 @@ export function StorageInventoryPanel() {
                 {t("Temporary files")}
               </dt>
               <dd className="mt-2 text-xl font-semibold tracking-tight tabular-nums">
-                {bytes(current.temporary_bytes, locale)}
+                {capacityBytes(current.temporary_bytes, locale)}
               </dd>
             </div>
           </dl>

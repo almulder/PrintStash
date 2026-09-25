@@ -70,6 +70,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   Boxes,
+  ScanSearch,
 } from "lucide-react";
 import {
   createCollection,
@@ -2244,6 +2245,12 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                     className="h-10 sm:h-8"
                   >
                     {uiText("Upload")}
+                  </Button>
+                  <Button asChild variant="outline" size="xs" className="hidden h-8 md:inline-flex">
+                    <Link href="/library/similar">
+                      <ScanSearch className="h-4 w-4" aria-hidden />
+                      {t("similarity.title")}
+                    </Link>
                   </Button>
                   {docView === "models" && (
                     <Button

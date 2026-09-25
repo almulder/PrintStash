@@ -37,15 +37,12 @@ describe("Search results", () => {
     expect(app.requests().some((request) => request.url.startsWith("/api/v1/search?"))).toBe(false);
     expect(app.requestsWithMethod("POST")).toHaveLength(0);
   });
-  it("exposes search options on demand", async () => {
-    const user = userEvent.setup();
+  it("keeps result type filters visible", async () => {
     results();
     await screen.findByRole("link", { name: "Desk bracket" });
-    expect(screen.getByRole("combobox", { name: "Search mode" })).not.toBeVisible();
-    await user.click(screen.getByText("Search options"));
-    expect(screen.getByRole("combobox", { name: "Search mode" })).toBeVisible();
-    await user.click(screen.getByText("Search options"));
-    expect(screen.getByRole("combobox", { name: "Search mode" })).not.toBeVisible();
+    expect(screen.getByRole("group", { name: "Result types" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Document" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Search mode" })).toBeNull();
   });
   it("changes the result layout without repeating the search", async () => {
     const user = userEvent.setup();
@@ -302,11 +299,16 @@ describe("Search results", () => {
       "/models/12",
     );
     expect(screen.getByRole("link", { name: "Tools" })).toHaveAttribute("href", "/?c=Tools");
+    expect(screen.getByRole("link", { name: "Tools" })).toHaveAccessibleDescription("Collection");
     expect(screen.getByRole("link", { name: "Robot" })).toHaveAttribute(
       "href",
       "/multipart-models/4",
     );
+    expect(screen.getByRole("link", { name: "Robot" })).toHaveAccessibleDescription(
+      "Multipart Model",
+    );
     expect(screen.getByRole("link", { name: "Guide" })).toHaveAttribute("href", "/documents/5");
+    expect(screen.getByRole("link", { name: "Guide" })).toHaveAccessibleDescription("Document");
     expect(screen.queryByText("Why this result")).toBeNull();
     expect(document.querySelector("script")).toBeNull();
   });
@@ -383,7 +385,6 @@ describe("Search results", () => {
   it("applies Subject filters through the canonical URL", async () => {
     const user = userEvent.setup();
     const app = results();
-    await user.click(screen.getByText("Search options"));
     await user.click(screen.getByRole("button", { name: "Document" }));
     await waitFor(() =>
       expect(app.requests().some((request) => request.url.includes("types%5B%5D=document"))).toBe(

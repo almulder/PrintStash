@@ -73,6 +73,16 @@ function setup(response = report) {
 }
 
 describe("Storage insights", () => {
+  it("shows small capacity summaries in MB", async () => {
+    setup({
+      ...report,
+      inventory: { ...report.inventory, unique_owned_bytes: 512 * 1024 },
+    });
+
+    expect((await screen.findByText("Files stored here")).parentElement).toHaveTextContent("<1 MB");
+    expect(screen.getByText("Temporary files").parentElement).toHaveTextContent("0 MB");
+  });
+
   it("explains unknown capacity", async () => {
     setup();
     expect(await screen.findByText("Capacity unknown")).toBeVisible();

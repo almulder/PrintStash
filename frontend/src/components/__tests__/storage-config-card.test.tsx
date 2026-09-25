@@ -582,14 +582,30 @@ describe("StorageConfigCard", () => {
 describe("Configured Vault migration entry", () => {
   it("keeps the active provider tier visible when location changes require migration", async () => {
     renderCard({ migrationManaged: true, config: anS3Config() });
-    await userEvent.setup().click(await screen.findByText("Storage connection details"));
-    expect(await screen.findByText("Active: Guarded")).toBeVisible();
-    expect(screen.getByText("Expected: Guarded")).toBeVisible();
-    expect(screen.getByText("Support: Stable")).toBeVisible();
+    expect(await screen.findByText("Storage safety: Guarded")).toBeVisible();
+    expect(screen.queryByText("Expected: Guarded")).toBeNull();
+    expect(screen.queryByText("Support: Stable")).toBeNull();
+  });
+  it("shows a concise current storage summary", async () => {
+    renderCard({ migrationManaged: true });
+    expect(await screen.findByText("Local disk")).toBeVisible();
+    expect(screen.getByText("Storage safety: Verified")).toBeVisible();
+    expect(screen.getByText("/data/files")).toBeVisible();
+    expect(screen.getByText("/data/thumbs")).toBeVisible();
+    expect(screen.queryByText("Verified on local filesystems with working hardlinks.")).toBeNull();
+  });
+  it("shows configured local paths when the provider has no path overrides", async () => {
+    renderCard({
+      migrationManaged: true,
+      config: aConfig({ storage_provider_config: { provider: "local" } }),
+    });
+    const details = await screen.findByRole("region", { name: "Storage connection details" });
+    expect(within(details).getByText("/data/files")).toBeVisible();
+    expect(within(details).getByText("/data/thumbs")).toBeVisible();
+    expect(within(details).queryByText("Root")).toBeNull();
   });
   it("keeps guarded deletion consequences visible when location changes require migration", async () => {
     renderCard({ migrationManaged: true, config: anS3Config() });
-    await userEvent.setup().click(await screen.findByText("Storage connection details"));
     expect(await screen.findByText("Guarded storage consequences")).toBeVisible();
     expect(screen.getByText("Object versions guard destructive operations.")).toBeVisible();
     expect(screen.getByText("Confirmed catalog removal retains stored bytes.")).toBeVisible();
@@ -597,18 +613,14 @@ describe("Configured Vault migration entry", () => {
   });
   it("routes location changes through the verified migration flow", async () => {
     renderCard({ migrationManaged: true });
-    expect(
-      await screen.findByRole("button", { name: "Move storage with a verified migration" }),
-    ).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Move storage" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Save configuration" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Data directory")).not.toBeInTheDocument();
   });
   it("hides the migration entry without an administrator session", async () => {
     renderCard({ migrationManaged: true, auth: adminSession({ user: null }) });
-    await screen.findByText(/Changing locations requires/);
-    expect(
-      screen.queryByRole("button", { name: "Move storage with a verified migration" }),
-    ).not.toBeInTheDocument();
+    await screen.findByText("Local disk");
+    expect(screen.queryByRole("button", { name: "Move storage" })).not.toBeInTheDocument();
   });
   it("keeps current credentials editable without exposing location fields", async () => {
     renderCard({ migrationManaged: true, config: anS3Config() });
