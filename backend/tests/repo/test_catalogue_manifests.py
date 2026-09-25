@@ -20,6 +20,7 @@ import pytest
 import yaml
 
 from app.core.config import settings
+from app.modules.administration import setup_policy
 from app.schemas.setup import SetupRequest
 from tests.paths import REPO_ROOT
 
@@ -96,19 +97,27 @@ class TestEveryCatalogue:
         assert "/data" in targets, "without /data every restart starts empty"
 
     @pytest.mark.parametrize("store", ALWAYS_PROVISIONED, ids=str)
-    def test_keeps_browser_registration_off_when_the_owner_is_provisioned(
+    def test_creates_the_owner_from_the_environment_where_it_is_always_supplied(
         self, store: str
     ) -> None:
-        # The owner exists before the first request, so registration would only
-        # open if provisioning failed, and then to whoever arrives first through
-        # the store's proxy. Disabled fails closed and shows the explainer.
-        assert _environment(store)["VAULT_SETUP_MODE"] == "disabled"
+        # The owner exists before the first request and the browser has no door,
+        # so nothing through the store's proxy can claim the installation.
+        assert _environment(store)["VAULT_SETUP_MODE"] == "environment"
 
     @pytest.mark.parametrize("store", OPTIONALLY_PROVISIONED, ids=str)
-    def test_enables_browser_registration_when_the_fields_may_be_blank(
-        self, store: str
-    ) -> None:
-        assert _environment(store)["VAULT_SETUP_MODE"] == "trusted_network"
+    def test_ships_defaults_that_register_in_the_browser(self, store: str) -> None:
+        # Resolved by the real policy: an untouched install dialog must not boot
+        # misconfigured.
+        environment = _environment(store)
+
+        policy = setup_policy.resolve(
+            environment["VAULT_SETUP_MODE"],
+            environment["VAULT_SETUP_ADMIN_USERNAME"],
+            environment["VAULT_SETUP_ADMIN_PASSWORD"],
+            environment["VAULT_SETUP_ADMIN_EMAIL"],
+        )
+
+        assert isinstance(policy, setup_policy.TrustedNetwork), policy
 
     @pytest.mark.parametrize("store", STORES, ids=str)
     def test_never_passes_a_jwt_secret(self, store: str) -> None:

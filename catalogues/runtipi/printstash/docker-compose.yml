@@ -1,14 +1,14 @@
 # Runtipi dynamic compose (schema v2), derived from the root docker-compose.yml.
-# The administrator comes from the required install-form fields, so browser
-# registration stays off: if provisioning ever fails, the setup page explains
-# why instead of letting the first visitor claim the installation.
+# environment mode: the administrator comes from the required install-form
+# fields and browser registration never opens. If the values are ever invalid,
+# the installation stays closed and the setup page names what to fix.
 services:
   printstash:
     image: ghcr.io/xiao-villamor/printstash:0.13.0
     restart: unless-stopped
     stop_grace_period: 60s
     environment:
-      - VAULT_SETUP_MODE=disabled
+      - VAULT_SETUP_MODE=environment
       - VAULT_RESTART_ENABLED=true
       - VAULT_SETUP_ADMIN_USERNAME=${PRINTSTASH_ADMIN_USERNAME}
       - VAULT_SETUP_ADMIN_PASSWORD=${PRINTSTASH_ADMIN_PASSWORD}

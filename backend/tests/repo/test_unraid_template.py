@@ -6,6 +6,7 @@ from xml.etree import ElementTree
 
 import pytest
 
+from app.modules.administration import setup_policy
 from tests.paths import REPO_ROOT
 
 
@@ -101,6 +102,31 @@ class TestPrintStashTemplate:
         description = _variables()["VAULT_SETUP_ADMIN_USERNAME"].get("Description", "")
 
         assert "local network" in description, description
+
+    def test_offers_both_first_run_modes_as_a_choice(self) -> None:
+        # Unraid renders a pipe-separated Default as a dropdown.
+        mode = _variables()["VAULT_SETUP_MODE"]
+
+        assert mode.get("Default", "").split("|") == ["trusted_network", "environment"]
+
+    def test_shows_the_first_run_mode_up_front(self) -> None:
+        assert _variables()["VAULT_SETUP_MODE"].get("Display") == "always", (
+            "the credentials only apply with environment, so the choice must be seen"
+        )
+
+    def test_ships_defaults_that_register_in_the_browser(self) -> None:
+        # Resolved by the real policy: an untouched template must not boot
+        # misconfigured.
+        variables = _variables()
+
+        policy = setup_policy.resolve(
+            variables["VAULT_SETUP_MODE"].text or "",
+            variables["VAULT_SETUP_ADMIN_USERNAME"].text or "",
+            variables["VAULT_SETUP_ADMIN_PASSWORD"].text or "",
+            variables["VAULT_SETUP_ADMIN_EMAIL"].text or "",
+        )
+
+        assert isinstance(policy, setup_policy.TrustedNetwork), policy
 
     def test_masks_the_administrator_password(self) -> None:
         assert _variables()["VAULT_SETUP_ADMIN_PASSWORD"].get("Mask") == "true"

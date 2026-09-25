@@ -36,7 +36,7 @@ services:
             en_US: Numeric group of the data folder and mounted Library sources.
         - container: VAULT_SETUP_ADMIN_USERNAME
           description:
-            en_US: Creates this administrator at first start. Fill it in if you will first open PrintStash through Tailscale, a VPN, a reverse proxy or a domain. If blank, the administrator can only be created in the browser from your local network (casaos.local or the device's LAN IP).
+            en_US: With VAULT_SETUP_MODE set to environment, creates this administrator at first start. Use it if you will first open PrintStash through Tailscale, a VPN, a reverse proxy or a domain. Leave it blank with trusted_network to create the administrator in the browser from your local network (casaos.local or the device's LAN IP).
         - container: VAULT_SETUP_ADMIN_PASSWORD
           description:
             en_US: Optional, at least 8 characters. Used once; reset it later under Settings → Users.
@@ -45,7 +45,7 @@ services:
             en_US: Optional administrator email.
         - container: VAULT_SETUP_MODE
           description:
-            en_US: trusted_network lets the first administrator register from your local network.
+            en_US: trusted_network registers the first administrator in the browser from your local network, with the administrator fields blank. environment creates it at first start from the administrator fields, which are then required.
       ports:
         - container: "3000"
           description:
@@ -75,7 +75,7 @@ x-casaos:
   tips:
     before_install:
       en_US: |
-        Fill in the administrator username and password to create the first administrator at first start. If you leave them blank, open PrintStash from your local network (casaos.local or the device's LAN IP) to create it in the browser; registration through Tailscale, a VPN, a reverse proxy or a domain is refused. Either way, PrintStash then asks where to store your files.
+        By default (VAULT_SETUP_MODE trusted_network) you create the first administrator in the browser from your local network (casaos.local or the device's LAN IP); registration through Tailscale, a VPN, a reverse proxy or a domain is refused. To create it at first start instead, set VAULT_SETUP_MODE to environment and fill in the administrator username and password. Either way, PrintStash then asks where to store your files.
   icon: https://raw.githubusercontent.com/xiao-villamor/PrintStash/main/icon.svg
   thumbnail: https://raw.githubusercontent.com/xiao-villamor/PrintStash/main/icon.svg
   screenshot_link: []
