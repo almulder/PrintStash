@@ -3463,6 +3463,11 @@
               }
             ]
           },
+          "has_readme": {
+            "default": false,
+            "title": "Has Readme",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
