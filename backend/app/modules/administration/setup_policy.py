@@ -61,22 +61,24 @@ class Misconfigured:
     variables: tuple[str, ...]
 
     def describe(self) -> str:
-        names = ", ".join(self.variables)
-        if self.code == "admin_credentials_missing":
-            return (
-                f"VAULT_SETUP_MODE=environment needs {names}; "
-                "no administrator was created"
-            )
-        if self.code == "admin_credentials_invalid":
-            return (
-                f"{names} does not meet the first-run requirements (username at "
-                "least 3 characters, password at least 8); no administrator was "
-                "created"
-            )
-        return (
-            f"{names} is set but VAULT_SETUP_MODE is not environment, so it is not "
-            "used; set VAULT_SETUP_MODE=environment or remove it"
-        )
+        return _DESCRIPTIONS[self.code].format(names=", ".join(self.variables))
+
+
+# Names only, never values: this text reaches the startup log.
+_DESCRIPTIONS: dict[MisconfigurationCode, str] = {
+    "admin_credentials_missing": (
+        "VAULT_SETUP_MODE=environment needs {names}; no administrator was created"
+    ),
+    "admin_credentials_invalid": (
+        "{names} does not meet the first-run requirements (username 3 to 128 "
+        "characters, password 8 to 256, email at most 255); no administrator was "
+        "created"
+    ),
+    "admin_credentials_without_environment_mode": (
+        "{names} is set but VAULT_SETUP_MODE is not environment, so it is not "
+        "used; set VAULT_SETUP_MODE=environment or remove it"
+    ),
+}
 
 
 SetupPolicy = TrustedNetwork | Environment | Disabled | Misconfigured
@@ -119,6 +121,19 @@ def resolve(mode: str, username: str, password: str, email: str) -> SetupPolicy:
             tuple(_VARIABLES[key] for key in _VARIABLES if key in rejected),
         )
     return Environment(request)
+
+
+def label(policy: SetupPolicy) -> str:
+    """A log-safe name for ``policy``: the mode, or the misconfiguration code."""
+    match policy:
+        case TrustedNetwork():
+            return "trusted_network"
+        case Environment():
+            return "environment"
+        case Disabled():
+            return "disabled"
+        case Misconfigured(code=code):
+            return f"misconfigured ({code})"
 
 
 def current() -> SetupPolicy:

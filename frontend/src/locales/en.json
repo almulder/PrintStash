@@ -1471,7 +1471,7 @@
   "setup.unavailableEnvironmentHelp": "VAULT_SETUP_MODE is environment, so PrintStash creates the administrator from VAULT_SETUP_ADMIN_* when it starts, and this page cannot create one. Restart PrintStash, then sign in with those credentials.",
   "setup.misconfiguredTitle": "The first-run settings don't fit together",
   "setup.misconfiguredMissing": "VAULT_SETUP_MODE is environment, but {variables} is not set, so no administrator was created.",
-  "setup.misconfiguredInvalid": "{variables} does not meet the requirements (username at least 3 characters, password at least 8), so no administrator was created.",
+  "setup.misconfiguredInvalid": "{variables} does not meet the requirements (username 3 to 128 characters, password 8 to 256, email at most 255), so no administrator was created.",
   "setup.misconfiguredWrongMode": "{variables} is set, but VAULT_SETUP_MODE is not environment, so it is not used and no administrator was created.",
   "setup.misconfiguredSetCredentials": "Set the administrator in the deployment:",
   "setup.misconfiguredUseBrowser": "Or register in the browser from your local network instead: switch the mode and remove the VAULT_SETUP_ADMIN_* variables.",

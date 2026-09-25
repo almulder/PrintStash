@@ -21,6 +21,73 @@ USERNAME = "store-owner"
 PASSWORD = "StoreFormPassword123"
 
 
+class TestEnvironment:
+    def test_keeps_the_password_out_of_its_repr(self) -> None:
+        policy = setup_policy.resolve("environment", USERNAME, PASSWORD, "")
+
+        assert PASSWORD not in repr(policy)
+
+
+class TestMisconfigured:
+    @pytest.mark.parametrize(
+        ("mode", "username", "password", "description"),
+        [
+            pytest.param(
+                "environment",
+                USERNAME,
+                "",
+                "VAULT_SETUP_MODE=environment needs VAULT_SETUP_ADMIN_PASSWORD; "
+                "no administrator was created",
+                id="missing",
+            ),
+            pytest.param(
+                "environment",
+                USERNAME,
+                "short",
+                "VAULT_SETUP_ADMIN_PASSWORD does not meet the first-run requirements "
+                "(username 3 to 128 characters, password 8 to 256, email at most "
+                "255); no administrator was created",
+                id="invalid",
+            ),
+            pytest.param(
+                "trusted_network",
+                USERNAME,
+                PASSWORD,
+                "VAULT_SETUP_ADMIN_USERNAME, VAULT_SETUP_ADMIN_PASSWORD is set but "
+                "VAULT_SETUP_MODE is not environment, so it is not used; set "
+                "VAULT_SETUP_MODE=environment or remove it",
+                id="wrong-mode",
+            ),
+        ],
+    )
+    def test_describes_the_problem_by_variable_name(
+        self, mode: str, username: str, password: str, description: str
+    ) -> None:
+        policy = setup_policy.resolve(mode, username, password, "")
+
+        assert isinstance(policy, setup_policy.Misconfigured)
+        assert policy.describe() == description
+
+    @pytest.mark.parametrize(
+        ("mode", "password"),
+        [
+            pytest.param("environment", "short", id="invalid"),
+            pytest.param("trusted_network", PASSWORD, id="wrong-mode"),
+        ],
+    )
+    def test_never_describes_the_password(self, mode: str, password: str) -> None:
+        policy = setup_policy.resolve(mode, USERNAME, password, "")
+
+        assert isinstance(policy, setup_policy.Misconfigured)
+        assert password not in policy.describe()
+
+    def test_every_code_is_a_reason_the_setup_page_explains(self) -> None:
+        # The status endpoint forwards the code; the page must know each one.
+        codes = set(get_args(setup_policy.MisconfigurationCode))
+
+        assert codes <= set(get_args(UnavailableReason))
+
+
 class TestResolve:
     def test_trusted_network_without_credentials_registers_in_the_browser(self) -> None:
         policy = setup_policy.resolve("trusted_network", "", "", "")
@@ -136,45 +203,33 @@ class TestResolve:
         )
 
 
-class TestEnvironment:
-    def test_keeps_the_password_out_of_its_repr(self) -> None:
-        policy = setup_policy.resolve("environment", USERNAME, PASSWORD, "")
-
-        assert PASSWORD not in repr(policy)
-
-
-class TestMisconfigured:
+class TestLabel:
     @pytest.mark.parametrize(
-        ("mode", "username", "password"),
+        ("mode", "username", "password", "label"),
         [
-            pytest.param("environment", USERNAME, "", id="missing"),
-            pytest.param("environment", USERNAME, "short", id="invalid"),
-            pytest.param("trusted_network", USERNAME, PASSWORD, id="wrong-mode"),
+            pytest.param("trusted_network", "", "", "trusted_network", id="trusted"),
+            pytest.param("environment", USERNAME, PASSWORD, "environment", id="env"),
+            pytest.param("disabled", "", "", "disabled", id="disabled"),
+            pytest.param(
+                "environment",
+                USERNAME,
+                "",
+                "misconfigured (admin_credentials_missing)",
+                id="misconfigured",
+            ),
         ],
     )
-    def test_describes_the_problem_by_variable_name(
-        self, mode: str, username: str, password: str
+    def test_names_the_resolved_policy(
+        self, mode: str, username: str, password: str, label: str
     ) -> None:
+        # The startup log reports this, not VAULT_SETUP_MODE: a misconfigured
+        # mode keeps every door shut whatever it says.
         policy = setup_policy.resolve(mode, username, password, "")
 
-        assert isinstance(policy, setup_policy.Misconfigured)
-        assert all(variable in policy.describe() for variable in policy.variables)
+        assert setup_policy.label(policy) == label
 
-    @pytest.mark.parametrize(
-        ("mode", "password"),
-        [
-            pytest.param("environment", "short", id="invalid"),
-            pytest.param("trusted_network", PASSWORD, id="wrong-mode"),
-        ],
-    )
-    def test_never_describes_the_password(self, mode: str, password: str) -> None:
-        policy = setup_policy.resolve(mode, USERNAME, password, "")
+    def test_never_names_the_credentials(self) -> None:
+        policy = setup_policy.resolve("environment", USERNAME, PASSWORD, "")
 
-        assert isinstance(policy, setup_policy.Misconfigured)
-        assert password not in policy.describe()
-
-    def test_every_code_is_a_reason_the_setup_page_explains(self) -> None:
-        # The status endpoint forwards the code; the page must know each one.
-        codes = set(get_args(setup_policy.MisconfigurationCode))
-
-        assert codes <= set(get_args(UnavailableReason))
+        assert USERNAME not in setup_policy.label(policy)
+        assert PASSWORD not in setup_policy.label(policy)
