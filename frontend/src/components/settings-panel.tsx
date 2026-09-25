@@ -460,7 +460,6 @@ export function SettingsPanel() {
   const stats = useVaultStats().data ?? null;
   const [exporting, setExporting] = useState<"json" | "csv" | null>(null);
   const [archiveBusy, setArchiveBusy] = useState<"export" | "import" | null>(null);
-  const [archiveVersion, setArchiveVersion] = useState<1 | 2>(2);
   const [loadedApiKeys, setApiKeys] = useState<ApiKeyRead[]>([]);
   // A signed-out visitor has no keys to list, so that is derived rather than cleared
   // from an effect on sign-out.
@@ -1092,7 +1091,7 @@ export function SettingsPanel() {
   async function exportArchive() {
     setArchiveBusy("export");
     try {
-      await downloadLibraryArchive(archiveVersion);
+      await downloadLibraryArchive(2);
     } catch (e) {
       toast.error(e);
     } finally {
@@ -1958,27 +1957,6 @@ export function SettingsPanel() {
                         )}
                       </p>
                       <div className="flex flex-wrap items-end gap-2">
-                        <label
-                          className="space-y-1 text-xs text-muted-foreground"
-                          htmlFor="library-archive-version"
-                        >
-                          <span className="block">{t("families.archiveFormat")}</span>
-                          <select
-                            id="library-archive-version"
-                            className={cn(inputClasses, "w-auto")}
-                            value={archiveVersion}
-                            disabled={archiveBusy !== null}
-                            aria-describedby={
-                              archiveVersion === 1 ? "library-archive-warning" : undefined
-                            }
-                            onChange={(event) =>
-                              setArchiveVersion(event.target.value === "1" ? 1 : 2)
-                            }
-                          >
-                            <option value="2">{t("families.archiveCurrent")}</option>
-                            <option value="1">{t("families.archiveLegacy")}</option>
-                          </select>
-                        </label>
                         <button
                           type="button"
                           onClick={() => void exportArchive()}
@@ -2012,15 +1990,6 @@ export function SettingsPanel() {
                           </label>
                         )}
                       </div>
-                      {archiveVersion === 1 && (
-                        <p
-                          id="library-archive-warning"
-                          role="status"
-                          className="text-xs text-muted-foreground"
-                        >
-                          {t("families.archiveLegacyWarning")}
-                        </p>
-                      )}
                     </div>
                   </SettingsCard>
 
