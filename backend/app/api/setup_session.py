@@ -30,6 +30,9 @@ _NETWORKS = tuple(
         "10.0.0.0/8",
         "172.16.0.0/12",
         "192.168.0.0/16",
+        # Not 100.64.0.0/10: RFC 6598 shared space numbers ISP carrier-grade NAT,
+        # where other customers can reach a forwarded port. Tailscale reuses it,
+        # so a tailnet address must be allowed explicitly.
         "127.0.0.0/8",
         "::1/128",
         "fc00::/7",
@@ -48,6 +51,8 @@ def host_allowed(host: str) -> bool:
     if (
         host in explicit
         or host == "localhost"
+        # Not ``.ts.net``: Tailscale Funnel publishes those names to the public
+        # internet, so a tailnet name must be allowed explicitly as well.
         or host.endswith((".localhost", ".local", ".home.arpa"))
     ):
         return True

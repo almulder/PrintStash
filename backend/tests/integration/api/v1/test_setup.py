@@ -15,6 +15,7 @@ just that the status code was 400.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,26 @@ def _payload(**overrides: Any) -> dict[str, Any]:
 
 def _complete(client: TestClient, **overrides: Any):
     return client.post("/api/v1/setup", json=_payload(**overrides))
+
+
+@pytest.fixture
+def provisioned_owner(
+    auth_headers: dict[str, str], make_system_config
+) -> dict[str, str]:
+    """What startup leaves for ``VAULT_SETUP_ADMIN_*``: a signed-in owner, no storage."""
+    make_system_config(
+        configured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        setup_storage_pending=True,
+    )
+    return auth_headers
+
+
+def _local_choice(root: Path) -> dict[str, str]:
+    return {
+        "storage_backend": "local",
+        "data_dir": str(root / "chosen-files"),
+        "thumb_dir": str(root / "chosen-thumbs"),
+    }
 
 
 def _sftp_payload(**overrides: Any) -> dict[str, Any]:
@@ -189,6 +210,7 @@ class TestSetupStatus:
             "configured": True,
             "setup_available": False,
             "recovery_required": False,
+            "storage_choice_required": False,
             "user_count": 0,
         }
 
@@ -211,6 +233,134 @@ class TestSetupStatus:
 
         assert body["recovery_required"] is True, (
             "a completion marker never reopens first ownership"
+        )
+
+    def test_reports_that_an_environment_owner_must_choose_storage(
+        self, client: TestClient, provisioned_owner: dict[str, str]
+    ) -> None:
+        body = client.get("/api/v1/setup/status").json()
+
+        assert body["storage_choice_required"] is True
+
+    def test_reports_an_untrusted_host_as_the_reason(self, client: TestClient) -> None:
+        body = client.get("http://public.example/api/v1/setup/status").json()
+
+        assert body["unavailable_reason"] == "untrusted_host"
+
+    def test_names_the_refused_host(self, client: TestClient) -> None:
+        body = client.get("http://public.example/api/v1/setup/status").json()
+
+        assert body["observed_host"] == "public.example"
+
+    def test_reports_disabled_registration_as_the_reason(
+        self, client: TestClient
+    ) -> None:
+        _overlay["setup_mode"] = "disabled"
+
+        body = client.get("/api/v1/setup/status").json()
+
+        assert body["unavailable_reason"] == "disabled"
+
+    def test_omits_the_reason_while_registration_is_available(
+        self, client: TestClient
+    ) -> None:
+        body = client.get("/api/v1/setup/status").json()
+
+        assert "unavailable_reason" not in body
+
+
+class TestPrepareStorage:
+    def test_chooses_storage_for_an_environment_owner(
+        self, client: TestClient, provisioned_owner: dict[str, str], tmp_path: Path
+    ) -> None:
+        response = client.post(
+            "/api/v1/setup/prepare-storage",
+            json=_local_choice(tmp_path),
+            headers=provisioned_owner,
+        )
+
+        assert response.status_code == 200, response.text
+
+    def test_closes_the_storage_choice(
+        self, client: TestClient, provisioned_owner: dict[str, str], tmp_path: Path
+    ) -> None:
+        client.post(
+            "/api/v1/setup/prepare-storage",
+            json=_local_choice(tmp_path),
+            headers=provisioned_owner,
+        )
+
+        body = client.get("/api/v1/setup/status").json()
+
+        assert body["storage_choice_required"] is False
+
+    def test_chooses_storage_from_an_untrusted_host(
+        self, client: TestClient, provisioned_owner: dict[str, str], tmp_path: Path
+    ) -> None:
+        # A signed-in owner is already trusted. This is the path that still works
+        # behind an app-store proxy that rewrites Host to a service name.
+        response = client.post(
+            "http://printstash-web/api/v1/setup/prepare-storage",
+            json=_local_choice(tmp_path),
+            headers=provisioned_owner,
+        )
+
+        assert response.status_code == 200, response.text
+
+    def test_asks_for_a_choice_when_none_was_made(
+        self, client: TestClient, provisioned_owner: dict[str, str]
+    ) -> None:
+        # Finishing unchosen storage would activate unpinned environment defaults.
+        response = client.post(
+            "/api/v1/setup/prepare-storage", headers=provisioned_owner
+        )
+
+        assert (response.status_code, response.json()["detail"]) == (
+            409,
+            "setup_storage_choice_required",
+        )
+
+    def test_treats_an_empty_body_as_no_choice(
+        self, client: TestClient, provisioned_owner: dict[str, str]
+    ) -> None:
+        response = client.post(
+            "/api/v1/setup/prepare-storage", json={}, headers=provisioned_owner
+        )
+
+        assert response.json()["detail"] == "setup_storage_choice_required"
+
+    def test_refuses_a_choice_once_storage_was_chosen(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        token = _complete(client).json()["access_token"]
+
+        response = client.post(
+            "/api/v1/setup/prepare-storage",
+            json=_local_choice(tmp_path / "elsewhere"),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert (response.status_code, response.json()["detail"]) == (
+            409,
+            "setup_storage_already_chosen",
+        )
+
+    def test_reports_a_refused_choice(
+        self, client: TestClient, provisioned_owner: dict[str, str], tmp_path: Path
+    ) -> None:
+        populated = tmp_path / "chosen-files"
+        populated.mkdir()
+        (populated / "someone-elses-model.stl").write_text("solid")
+
+        response = client.post(
+            "/api/v1/setup/prepare-storage",
+            json=_local_choice(tmp_path),
+            headers=provisioned_owner,
+        )
+
+        assert (response.status_code, response.json()["detail"]) == (
+            400,
+            "data_dir_not_empty",
         )
 
 
@@ -679,11 +829,11 @@ class TestStorageValidation:
         detail: str,
     ) -> None:
         # A real filesystem cannot be made to fail these on demand, so only the one
-        # call under test is stood in for — bound in the setup module's namespace, so
-        # the pathlib.Path every other module holds is untouched.
-        import app.api.v1.setup as setup_mod
+        # call under test is stood in for — bound in the storage-preparation module's
+        # namespace, so the pathlib.Path every other module holds is untouched.
+        from app.modules.administration import setup_storage
 
-        monkeypatch.setattr(setup_mod, "Path", _hostile_path(failing_call))
+        monkeypatch.setattr(setup_storage, "Path", _hostile_path(failing_call))
 
         response = _complete(client)
 
@@ -695,9 +845,9 @@ class TestStorageValidation:
     ) -> None:
         # Probe cleanup is best-effort: a filesystem that refuses the unlink must not
         # fail an otherwise valid setup.
-        import app.api.v1.setup as setup_mod
+        from app.modules.administration import setup_storage
 
-        monkeypatch.setattr(setup_mod, "Path", _hostile_path("unlink"))
+        monkeypatch.setattr(setup_storage, "Path", _hostile_path("unlink"))
 
         response = _complete(client)
 
@@ -710,7 +860,8 @@ class TestStorageValidation:
             raise PermissionError("read-only mount")
 
         monkeypatch.setattr(
-            "app.api.v1.setup.tempfile.NamedTemporaryFile", read_only_mount
+            "app.modules.administration.setup_storage.tempfile.NamedTemporaryFile",
+            read_only_mount,
         )
 
         response = _complete(client)
@@ -859,7 +1010,16 @@ class TestBrowserPreparation:
         assert response.status_code == 200
 
     @pytest.mark.parametrize(
-        "host", ["public.example", "127.0.0.1.evil.example", "8.8.8.8", "100.64.0.1"]
+        "host",
+        [
+            "public.example",
+            "127.0.0.1.evil.example",
+            "8.8.8.8",
+            # Shared carrier-grade NAT space: other ISP customers, not a LAN.
+            "100.64.0.1",
+            # Tailscale Funnel can publish a tailnet name to the internet.
+            "vault.tailnet-1234.ts.net",
+        ],
     )
     def test_unapproved_host_cannot_prepare_setup(self, client, host):
         response = client.post(

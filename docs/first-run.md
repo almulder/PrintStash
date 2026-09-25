@@ -52,6 +52,43 @@ and resume it from Settings or an empty library. Printer connection and backups
 are optional next steps. Passwords stay in memory; only non-sensitive preferences
 and guide progress are saved in the browser.
 
+## An administrator from the deployment
+
+App-store installs (Unraid, Runtipi, CasaOS) and unattended deployments can create
+the first administrator without the browser registration step:
+
+```yaml
+environment:
+  VAULT_SETUP_ADMIN_USERNAME: admin
+  VAULT_SETUP_ADMIN_PASSWORD: <at least 8 characters>
+  VAULT_SETUP_ADMIN_EMAIL: admin@example.net # optional
+```
+
+At startup, an installation without an owner creates that administrator. Sign in
+with those credentials. PrintStash then opens the **Your files** step, because no
+storage has been chosen yet; choose it there to finish setup. The choice is checked
+before it is saved, so a mistyped remote setting can be corrected.
+
+These variables are consumed once. They never change an existing account, so
+editing the password in an install form later does not change the account's
+password; change it in Settings instead. Blank values are ignored, and a password
+shorter than 8 characters, or a username without a password, is refused with an
+error in the logs. The password is never written to the logs. This path works with
+any `VAULT_SETUP_MODE`, including `disabled`.
+
+## When the browser cannot register
+
+If this browser may not create the first administrator, the setup page explains
+why, names the address PrintStash saw, and lists what to change:
+
+- **Registration is disabled** (`VAULT_SETUP_MODE=disabled`): enable
+  `trusted_network`, or provision the administrator from the deployment.
+- **The address is not recognised as private**: open PrintStash at its local
+  network address, add the address to `VAULT_SETUP_ALLOWED_HOSTS`, or provision
+  the administrator from the deployment.
+
+After changing a setting, restart PrintStash and choose **Check again**.
+
 ## Access addresses and proxies
 
 Initial registration accepts localhost, private IP addresses, and names ending in
@@ -60,6 +97,12 @@ comma-separated list of additional exact hostnames when needed, without scheme o
 port. The browser Origin must match the request Host and scheme, including the
 port. Preserve Host through proxies; do not treat a Docker proxy's private address
 as evidence that a caller belongs to your trusted network.
+
+Tailscale addresses are not trusted automatically. `100.64.0.0/10` is also the
+range ISPs use for carrier-grade NAT, where other customers can reach a forwarded
+port, and Tailscale Funnel can publish `*.ts.net` names to the internet. List your
+tailnet name or address in `VAULT_SETUP_ALLOWED_HOSTS`, or provision the
+administrator from the deployment.
 
 The browser obtains a temporary HttpOnly, SameSite Strict preparation cookie and
 automatically sends its anti-CSRF proof. Preparation lasts 60 minutes and can be

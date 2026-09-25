@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,6 +18,13 @@ class SetupStatus(BaseModel):
     configured: bool
     setup_available: bool = False
     recovery_required: bool = False
+    # An owner exists (provisioned from VAULT_SETUP_ADMIN_*) but nobody has
+    # chosen storage yet; the signed-in owner finishes it in the browser.
+    storage_choice_required: bool = False
+    # Why browser registration is unavailable on an unconfigured install, and the
+    # host the caller used, so the page can say which way out applies.
+    unavailable_reason: Optional[Literal["disabled", "untrusted_host"]] = None
+    observed_host: Optional[str] = None
     user_count: int = 0
     default_data_dir: Optional[str] = None
     default_thumb_dir: Optional[str] = None

@@ -137,6 +137,13 @@ class Settings(BaseSettings):
     # Initial registration is explicitly enabled only on a trusted network.
     setup_mode: Literal["trusted_network", "disabled"] = "disabled"
     setup_allowed_hosts: str = ""
+    # First administrator for installs that cannot use browser registration
+    # (app-store forms, unattended deployments). Consumed once while the
+    # installation has no owner; it never changes an existing account.
+    # Empty values are unset: install forms emit empty variables for blanks.
+    setup_admin_username: str = ""
+    setup_admin_password: SecretStr = SecretStr("")
+    setup_admin_email: str = ""
     # Credentials persisted in the database are encrypted with this external
     # key. Empty uses a generated 0600 key file beside the SQLite database.
     secrets_key: str = ""

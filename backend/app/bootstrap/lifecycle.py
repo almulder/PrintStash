@@ -268,6 +268,15 @@ async def lifespan(app: FastAPI):
                     reset_count,
                 )
         configured = is_configured(session)
+    if not restore_maintenance and not configured:
+        # Its own session: first ownership opens a write-locking transaction,
+        # which must not start inside the repairs above.
+        from app.modules.administration.setup_bootstrap import (
+            provision_from_environment,
+        )
+
+        with get_session_factory().scoped_session() as session:
+            configured = provision_from_environment(session) is not None
     if restore_maintenance:
         logger.critical(
             "interrupted restore detected; application remains in restore maintenance"

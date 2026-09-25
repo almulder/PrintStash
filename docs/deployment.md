@@ -324,7 +324,10 @@ These defaults apply when the setting is omitted.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `VAULT_SETUP_MODE` | `disabled` in the API; `trusted_network` in Compose | Enables browser registration only for an unconfigured installation. Set `disabled` for an internet-facing installation. |
-| `VAULT_SETUP_ALLOWED_HOSTS` | Empty | Extra comma-separated hostnames allowed for initial registration. Localhost, private addresses, `.local`, `.localhost`, and `.home.arpa` are already allowed. |
+| `VAULT_SETUP_ALLOWED_HOSTS` | Empty | Extra comma-separated hostnames allowed for initial registration. Localhost, private addresses, `.local`, `.localhost`, and `.home.arpa` are already allowed. Tailscale names (`*.ts.net`) and `100.x` addresses must be listed here. |
+| `VAULT_SETUP_ADMIN_USERNAME` | Empty | Creates the first administrator at startup when the installation has no owner, instead of browser registration. The administrator then signs in and chooses storage. Used once: it never changes an existing account. See [first use](first-run.md#an-administrator-from-the-deployment). |
+| `VAULT_SETUP_ADMIN_PASSWORD` | Empty | Password for that administrator, at least 8 characters. Required with the username. Changing it later does not change the account's password. |
+| `VAULT_SETUP_ADMIN_EMAIL` | Empty | Optional email for that administrator. |
 | `VAULT_JWT_SECRET` | Generated and stored in the database | Manage your own signing secret; generate with `openssl rand -hex 32`. |
 | `VAULT_SECRETS_KEY` | Generated key file in `/data/db` | External key for stored credentials. Preserve it with backups; changing it requires a planned key migration. |
 | `VAULT_SESSION_COOKIE_SECURE` | `false` | Set `true` when accessed through HTTPS. |
