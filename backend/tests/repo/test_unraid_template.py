@@ -17,6 +17,17 @@ def _configs(kind: str) -> list[ElementTree.Element]:
     return _template().findall(f"Config[@Type='{kind}']")
 
 
+def _variables() -> dict[str | None, ElementTree.Element]:
+    return {item.get("Target"): item for item in _configs("Variable")}
+
+
+ADMIN_SETTINGS = [
+    "VAULT_SETUP_ADMIN_USERNAME",
+    "VAULT_SETUP_ADMIN_PASSWORD",
+    "VAULT_SETUP_ADMIN_EMAIL",
+]
+
+
 class TestPrintStashTemplate:
     def test_selects_the_unified_image(self) -> None:
         template = _template()
@@ -69,6 +80,29 @@ class TestPrintStashTemplate:
 
         assert variables["PUID"].text == "99"
         assert variables["PGID"].text == "100"
+
+    @pytest.mark.parametrize("target", ADMIN_SETTINGS, ids=str)
+    def test_shows_the_administrator_fields_up_front(self, target: str) -> None:
+        assert _variables()[target].get("Display") == "always", (
+            "hidden under Advanced, a field reads as missing (#248)"
+        )
+
+    @pytest.mark.parametrize("target", ADMIN_SETTINGS, ids=str)
+    def test_leaves_the_administrator_optional(self, target: str) -> None:
+        field = _variables()[target]
+
+        assert (field.get("Required"), field.text) == ("false", None), (
+            "blank fields fall back to browser registration on the LAN"
+        )
+
+    def test_masks_the_administrator_password(self) -> None:
+        assert _variables()["VAULT_SETUP_ADMIN_PASSWORD"].get("Mask") == "true"
+
+    @pytest.mark.parametrize("target", ["PUID", "PGID"], ids=str)
+    def test_shows_the_file_identity_up_front(self, target: str) -> None:
+        assert _variables()[target].get("Display") == "always", (
+            "hidden under Advanced, a field reads as missing (#248)"
+        )
 
     def test_restarts_the_supervised_container(self) -> None:
         variables = {item.get("Target"): item for item in _configs("Variable")}

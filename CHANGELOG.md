@@ -81,6 +81,10 @@ image. See UPGRADE.md before pulling.**
   account. The mode and variables are checked together: a contradicting
   combination keeps setup closed instead of silently falling back to browser
   registration.
+- App-store manifests for Runtipi, Umbrel and CasaOS/ZimaOS live in
+  `catalogues/` and are published with each release. The Unraid template now
+  shows optional administrator username, password and email fields, and the
+  `PUID`/`PGID` fields, without opening Advanced.
 - When the browser cannot create the first administrator, the setup page now
   says why and lists what to change: the address PrintStash saw, or the
   first-run variables that don't fit together. It previously showed a single

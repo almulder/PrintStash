@@ -24,6 +24,11 @@ sweep). This file is the ordered checklist that ties it together.
       `CHANGELOG[0]` entry to `frontend/src/lib/changelog.ts` (its own test,
       `changelog.test.ts`, checks this against `package.json` and fails CI on
       its own if skipped) — one commit: `chore(release): bump to X.Y.Z`.
+- [ ] Bump the app-store manifests under `catalogues/` to the new version in
+      the same commit (`tests/repo/test_catalogue_manifests.py` fails until
+      they match). After publishing, update each store with its own pull
+      request as described in `catalogues/README.md`; the Unraid template needs
+      nothing, because Community Applications re-reads it.
 - [ ] Promote the accumulated `CHANGELOG.md` `## Unreleased` contents to
       `## X.Y.Z`, restore an empty `## Unreleased`, and verify the entry matches
       the condensed in-app changelog (format in
