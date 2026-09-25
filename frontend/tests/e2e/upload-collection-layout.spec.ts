@@ -5,7 +5,8 @@ import { useMockApi } from "./_setup";
 
 useMockApi();
 
-const nestedPath = "printstash-data/printstash-data/house/garden/stackable-vertical-garden-planter";
+const nestedPath = "printstash-data/stackable-vertical-garden-planter-with-extra-parts";
+const nestedDisplayPath = "PrintStash Data/Stackable Vertical Garden Planter With Extra Parts";
 
 test.describe("Upload collection selector", () => {
   test("keeps a nested collection path inside the upload selector", async ({ page }) => {
@@ -16,10 +17,20 @@ test.describe("Upload collection selector", () => {
         json: [
           {
             id: 1,
-            name: "stackable-vertical-garden-planter",
-            slug: "stackable-vertical-garden-planter",
-            path: nestedPath,
+            name: "PrintStash Data",
+            slug: "printstash-data",
+            path: "printstash-data",
             parent_id: null,
+            model_count: 0,
+            effective_role: "admin",
+            tags: [],
+          },
+          {
+            id: 2,
+            name: "Stackable Vertical Garden Planter With Extra Parts",
+            slug: "stackable-vertical-garden-planter-with-extra-parts",
+            path: nestedPath,
+            parent_id: 1,
             model_count: 0,
             effective_role: "admin",
             tags: [],
@@ -33,9 +44,11 @@ test.describe("Upload collection selector", () => {
     const dialog = page.getByRole("dialog", { name: "Upload model" });
     await dialog.getByRole("button", { name: "None" }).click();
     await page
-      .getByRole("option", { name: new RegExp("stackable-vertical-garden-planter") })
+      .getByRole("option", {
+        name: new RegExp("Stackable Vertical Garden Planter With Extra Parts"),
+      })
       .click();
-    const selector = dialog.getByRole("button", { name: nestedPath });
+    const selector = dialog.getByRole("button", { name: nestedDisplayPath });
 
     const bounds = await selector.evaluate((button) => {
       const label = button.querySelector("span")!;
@@ -53,6 +66,6 @@ test.describe("Upload collection selector", () => {
     expect(bounds.labelHeight).toBeLessThanOrEqual(bounds.lineHeight);
     expect(bounds.labelTop).toBeGreaterThanOrEqual(bounds.buttonTop);
     expect(bounds.labelBottom).toBeLessThanOrEqual(bounds.buttonBottom);
-    await expect(selector).toHaveAttribute("title", nestedPath);
+    await expect(selector).toHaveAttribute("title", nestedDisplayPath);
   });
 });

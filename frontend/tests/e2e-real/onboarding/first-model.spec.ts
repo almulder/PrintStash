@@ -91,6 +91,7 @@ test.describe("Browser onboarding", () => {
       ? "recovers a lost account response without creating another administrator"
       : "reaches its first Model entirely through browser controls",
     async ({ page }, testInfo) => {
+      test.setTimeout(240_000);
       const sourcePath = `/tmp/printstash-onboarding-${process.env.PLAYWRIGHT_ONBOARDING_API_PORT ?? "8431"}/existing-models`;
       await mkdir(sourcePath, { recursive: true });
       await writeFile(

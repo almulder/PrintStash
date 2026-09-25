@@ -594,7 +594,7 @@ describe("ModelBrowser", () => {
       const { requests } = renderVault({ collections: [aCollection()] });
       const outliner = screen.getByPlaceholderText("Filter outliner...").closest("aside")!;
 
-      await user.hover(await within(outliner).findByTitle("parts"));
+      await user.hover(await within(outliner).findByTitle("Parts"));
 
       await waitFor(() =>
         expect(requestsFor(requests, "/api/v1/models/page", "parts")).toHaveLength(1),
@@ -1251,7 +1251,7 @@ describe("ModelBrowser", () => {
       await user.click(await screen.findByRole("button", { name: /Move/ }));
       const dialog = await screen.findByRole("dialog");
 
-      await user.click(within(dialog).getByRole("button", { name: /spares/ }));
+      await user.click(within(dialog).getByRole("button", { name: /Spares/ }));
       await user.click(within(dialog).getByRole("button", { name: /^Move/ }));
 
       await waitFor(() =>
@@ -2098,7 +2098,7 @@ describe("ModelBrowser", () => {
       await user.click(screen.getByLabelText("Select Benchy"));
       await user.click(await screen.findByRole("button", { name: /Move/ }));
       const dialog = await screen.findByRole("dialog");
-      await user.click(within(dialog).getByRole("button", { name: /spares/ }));
+      await user.click(within(dialog).getByRole("button", { name: /Spares/ }));
       await user.click(within(dialog).getByRole("button", { name: /^Move/ }));
     }
 

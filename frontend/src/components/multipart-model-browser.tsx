@@ -1,6 +1,7 @@
 "use client";
 
 import { uiText } from "@/lib/locale";
+import { collectionDisplayPath } from "@/lib/collection-display";
 import { useUiLocale } from "@/lib/i18n";
 
 import { useMemo, useRef, useState } from "react";
@@ -127,11 +128,13 @@ function detailHref(id: number, returnTo?: string): string {
 
 export function MultipartModelCard({
   item,
+  collectionLabel,
   returnTo,
   availableTags = [],
   onDataChange,
 }: {
   item: MultipartModelListItem;
+  collectionLabel?: string | null;
   returnTo?: string;
   availableTags?: TagRead[];
   onDataChange?: () => void;
@@ -217,7 +220,7 @@ export function MultipartModelCard({
         <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3">
           <h3
             title={item.name}
-            className="line-clamp-2 break-words text-sm font-bold uppercase tracking-tight"
+            className="line-clamp-2 break-words text-sm font-bold tracking-tight"
           >
             {item.name}
           </h3>
@@ -243,7 +246,7 @@ export function MultipartModelCard({
                 <span
                   key={tag}
                   title={tag}
-                  className="max-w-24 truncate rounded border border-primary-soft bg-accent px-1.5 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wider text-accent-foreground"
+                  className="max-w-24 truncate rounded border border-primary-soft bg-accent px-1.5 py-0.5 font-mono text-3xs font-semibold tracking-wider text-accent-foreground"
                 >
                   {tag}
                 </span>
@@ -254,12 +257,12 @@ export function MultipartModelCard({
                 </span>
               )}
             </div>
-            {item.collection && (
+            {collectionLabel && (
               <span
-                title={item.collection}
+                title={collectionLabel}
                 className="max-w-[45%] shrink truncate text-xs text-muted-foreground"
               >
-                {item.collection}
+                {collectionLabel}
               </span>
             )}
           </div>
@@ -359,7 +362,7 @@ export function NewMultipartModelModal({
             <option value="">{t("multipart.vaultOnly")}</option>
             {writableCollections.map((collection) => (
               <option key={collection.id} value={collection.id}>
-                {collection.path}
+                {collectionDisplayPath(collections, collection.path)}
               </option>
             ))}
           </select>
@@ -573,6 +576,7 @@ export function MultipartModelBrowser({
               <MultipartModelCard
                 key={item.id}
                 item={item}
+                collectionLabel={collectionDisplayPath(collections, item.collection)}
                 availableTags={availableTags}
                 onDataChange={() => {
                   void Promise.all([
@@ -925,7 +929,7 @@ function MultipartMemberCard({ model }: { model: MultipartModelCandidate }) {
       <div className="flex min-h-0 flex-1 flex-col p-3">
         <h3
           className={cn(
-            "line-clamp-2 text-sm font-bold uppercase tracking-tight",
+            "line-clamp-2 text-sm font-bold tracking-tight",
             !model.available && "text-muted-foreground",
           )}
         >
@@ -972,9 +976,11 @@ function MultipartMemberCard({ model }: { model: MultipartModelCandidate }) {
 
 function MultipartOverview({
   model,
+  collections,
   onAddFirst,
 }: {
   model: MultipartModelRead;
+  collections: CollectionRead[];
   onAddFirst?: () => void;
 }) {
   useUiLocale();
@@ -1040,7 +1046,7 @@ function MultipartOverview({
                 {model.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full border border-outline-variant bg-surface-container-low px-2 py-0.5 font-mono text-3xs uppercase tracking-wider text-on-surface-variant"
+                    className="rounded-full border border-outline-variant bg-surface-container-low px-2 py-0.5 font-mono text-3xs tracking-wider text-on-surface-variant"
                   >
                     {tag}
                   </span>
@@ -1061,7 +1067,7 @@ function MultipartOverview({
                   {t("multipart.collectionLabel")}
                 </dt>
                 <dd className="mt-1 text-sm font-medium text-foreground">
-                  {model.collection || t("multipart.vaultOnly")}
+                  {collectionDisplayPath(collections, model.collection) || t("multipart.vaultOnly")}
                 </dd>
               </div>
             </dl>
@@ -1775,7 +1781,7 @@ export function MultipartModelDetailPage() {
                     <option value="">{t("multipart.vaultOnly")}</option>
                     {writableCollections.map((collection) => (
                       <option key={collection.id} value={collection.id}>
-                        {collection.path}
+                        {collectionDisplayPath(collections, collection.path)}
                       </option>
                     ))}
                   </select>
@@ -1979,7 +1985,11 @@ export function MultipartModelDetailPage() {
           />
         </div>
       ) : (
-        <MultipartOverview model={model} onAddFirst={canEdit ? beginAddingFirst : undefined} />
+        <MultipartOverview
+          model={model}
+          collections={collections}
+          onAddFirst={canEdit ? beginAddingFirst : undefined}
+        />
       )}
     </div>
   );

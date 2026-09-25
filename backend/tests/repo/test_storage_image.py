@@ -22,7 +22,7 @@ class TestStorageImage:
         assert feature_line is not None
         assert "services-s3" in feature_line.group(1).split(",")
 
-    def test_builds_each_backend_image_on_its_native_architecture(self) -> None:
+    def test_checks_each_backend_image_on_its_native_architecture(self) -> None:
         workflow = yaml.safe_load(
             (REPO_ROOT / ".github/workflows/container-publish.yml").read_text()
         )
@@ -40,15 +40,35 @@ class TestStorageImage:
             ("printstash-api-lite", "arm64"),
         }
         assert all(
-            row["runner"]
+            row["platform"] == f"linux/{row['arch']}"
+            and row["runner"]
             == ("ubuntu-latest" if row["arch"] == "amd64" else "ubuntu-24.04-arm")
-            and row["platform"] == f"linux/{row['arch']}"
             for row in images
         )
+        steps = job["steps"]
         assert any(
             step.get("uses", "").startswith("docker/build-push-action@")
-            for step in job["steps"]
+            for step in steps
+        )
+        smoke = next(
+            step
+            for step in steps
+            if step.get("name") == "Test backend image before exporting digest"
+        )
+        assert smoke["if"] == "startsWith(matrix.image, 'printstash-api')"
+        assert smoke["env"]["VARIANT"] == (
+            "${{ matrix.image == 'printstash-api' && 'full' || 'lite' }}"
+        )
+        assert smoke["env"]["DIGEST"] == "${{ steps.build.outputs.digest }}"
+        assert smoke["run"].index('docker pull "$image"') < smoke["run"].index(
+            "./scripts/test.sh image"
+        )
+        assert '--image "$image" --variant "$VARIANT"' in smoke["run"]
+        assert steps.index(smoke) < next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("name") == "Export digest"
         )
         assert any(
-            "test-unified-image.sh" in step.get("run", "") for step in job["steps"]
+            "test-unified-image.sh" in step.get("run", "") for step in steps
         )
