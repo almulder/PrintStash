@@ -39,7 +39,8 @@ image. See UPGRADE.md before pulling.**
   size, with no second copy on disk. Local backups publish their archive the
   same way when no remote replica needs it. Where a link is impossible (another
   mount, or a filesystem without hard links) the file is copied as before, and
-  startup logs a warning.
+  Settings warns "Imports are copied, not hard-linked" with a link to the
+  storage layout guide, which lists the layouts that keep hard links.
 
 ### Added
 

@@ -81,7 +81,9 @@ services:
       #   VAULT_EMBEDDING_CACHE_DIR: /mnt/ssd/printstash/ai-models
       # Keep VAULT_STAGING_DIR on the same mount as VAULT_DATA_DIR: imports
       # publish staged files into the library by hard link, which only works
-      # within one mount. Split them and every import copies its file.
+      # within one mount. Split them, or map a second volume onto a subfolder
+      # of /data (e.g. `- hdd:/data/files`), and every import copies its file;
+      # Settings then warns. docs/deployment.md#hard-linked-imports
       #
       # PostgreSQL (with --profile postgres) instead of SQLite:
       #   VAULT_DB_URL: postgresql+psycopg://printstash:<POSTGRES_PASSWORD>@postgres:5432/printstash

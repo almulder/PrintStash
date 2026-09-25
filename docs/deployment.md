@@ -179,14 +179,8 @@ the default `docker-compose.yml` mounts one named volume, `printstash`, there:
 | `/data/artifact-cache` | Optional local cache for remote storage |
 | `/data/ai-models` | Downloaded AI search models |
 
-**Keep `/data` one mount.** An import is assembled in `/data/staging` and then
-published into `/data/files` by hard link: the staged file becomes the library
-file at once, whatever its size, and never exists on disk twice. Linux can only
-hard-link within one mount, even when two mounts sit on the same disk, so a
-layout that puts staging and files on separate mounts makes every import copy
-its bytes instead. PrintStash still works that way, but it logs a warning at
-startup ("imports copy every staged file") and reports
-`storage_probe_diagnostics.staged_hardlink: false` in `GET /api/v1/config`.
+**Keep `/data` one mount**, so imports are hard-linked rather than copied. See
+[Hard-linked imports](#hard-linked-imports) for which layouts keep that.
 
 Docker prefixes the volume name with the Compose project name, normally the
 directory name. Keep that directory/project name when updating so the app finds
@@ -232,10 +226,67 @@ at it; `docker-compose.advanced.yml` shows each one, commented out.
 | `VAULT_DB_URL` | `sqlite:////data/db/printstash.sqlite`, or a PostgreSQL URL |
 | `VAULT_SECRETS_KEY_FILE` | `/data/db/.printstash-secrets-key` |
 
-An empty value means the default. Moving `VAULT_DATA_DIR` without
-`VAULT_STAGING_DIR` puts them on different mounts and turns every import into a
-copy, so move both together. Mounting a second volume *at* `/data/files`
-instead of setting a variable splits the mount the same way.
+An empty value means the default. **Move `VAULT_DATA_DIR` and
+`VAULT_STAGING_DIR` together**, onto the same mount; see below for why.
+
+### Hard-linked imports
+
+Every upload, URL import, library-transfer archive and printer capture is first
+written to the staging directory, then published into the library by **hard
+link**: the staged file *becomes* the library file. Publishing takes the same
+fraction of a millisecond at any size (a 2 GiB file that took about 7 s to copy
+publishes in under 1 ms), and the file never occupies disk twice, not even
+briefly.
+
+A hard link works only **within one mount**. Linux refuses one between two
+mounts even when both sit on the same disk. PrintStash then copies the file
+instead. Nothing breaks, but every import gets slower as files grow and briefly
+needs twice its size in free space.
+
+| Layout | Imports |
+| --- | --- |
+| One named volume or one host folder at `/data` (both Compose files) | Hard link |
+| `VAULT_DATA_DIR` and `VAULT_STAGING_DIR` moved together to one other mount, e.g. both under `/mnt/hdd` | Hard link |
+| **A second volume or host folder mapped onto a subfolder of `/data`**, e.g. `- hdd:/data/files` next to `- printstash:/data` | **Copy.** The subfolder is its own mount, even though no variable changed |
+| `VAULT_DATA_DIR` on another mount while `VAULT_STAGING_DIR` stays on `/data`, or the reverse | **Copy** |
+| One volume per subfolder (the layout of earlier releases) | **Copy** |
+| A filesystem without hard links, such as some SMB/CIFS or FUSE mounts | **Copy** |
+| S3, WebDAV or SFTP primary storage | Upload. There is no local file to link; this is not a misconfiguration |
+
+Two more cases always copy by design: write-back into a mounted Library source
+(that folder is its own mount), and thumbnails (they are generated, not
+staged).
+
+**How you are told.** PrintStash checks this at every start. When imports will
+copy:
+
+- Settings shows **"Imports are copied, not hard-linked"**, both on the overview
+  and on the Storage section.
+- The log says `imports copy every staged file: staging (…) cannot hard-link
+  into the library (…)`.
+- `GET /api/v1/health/details` reports
+  `components.storage.diagnostics.staged_hardlink: false`.
+
+**Fixing it** means giving staging and the library the same mount, then
+restarting:
+
+- Remove a volume mapped onto a subfolder of `/data`, after copying its contents
+  into the main volume the way [UPGRADE.md](../UPGRADE.md#unreleased-one-data-volume)
+  moves the old volumes.
+- Or, when files must live on another disk, point **both** `VAULT_DATA_DIR` and
+  `VAULT_STAGING_DIR` at that disk's mount.
+
+Also good to know:
+
+- **Unraid:** keep the appdata share on one pool, as the template does by
+  default. A share spread across array disks can put staging and files on
+  different disks, and a link between disks falls back to a copy.
+- **Nothing is left behind.** The staged name is removed once the link exists,
+  so backups, `du` and file browsers see each file once.
+- **Permissions:** a linked file is narrowed to `0600`, the same as a file
+  PrintStash creates itself.
+- **Free-space checks** still reserve room for a copy, so a nearly full disk is
+  refused cleanly even when the link would have needed no space.
 
 To index an existing library folder, add a mount such as
 `/path/to/library:/library:ro` to the service's existing volume list, then add
