@@ -1106,9 +1106,7 @@ test.describe("settings", () => {
     await page.unroute("**/api/v1/storage/providers");
   });
 
-  test("guides remote provider selection at desktop and mobile widths", async ({
-    page,
-  }, testInfo) => {
+  test("guides remote provider selection responsively", async ({ page }, testInfo) => {
     await page.addInitScript(() => localStorage.setItem("printstash.theme", "dark"));
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto("/settings?section=remote-storage");

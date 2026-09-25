@@ -81,9 +81,7 @@ test.describe("search clarity", () => {
     await page.screenshot({ path: testInfo.outputPath("search-dense-mobile-list-dark.png") });
   });
 
-  test("keeps Model detail navigation on one row at desktop and mobile widths", async ({
-    page,
-  }, testInfo) => {
+  test("keeps Model detail navigation on one row responsively", async ({ page }, testInfo) => {
     await page.addInitScript(() => localStorage.setItem("ps-model-detail-sidebar-width", "400"));
     for (const viewport of [
       { width: 1920, height: 1080 },
