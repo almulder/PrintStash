@@ -73,6 +73,12 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- Opening a folder in the library no longer swaps the grid for a loading
+  skeleton; the current folder stays on screen until the next one is ready.
+  Folders are also prefetched when the pointer rests on them or they receive
+  keyboard focus, and a folder's readme is requested only when it has one and
+  is cached for later visits (`CollectionRead` gains `has_readme`).
+
 - Mounted Library source folders keep their exact capitalization and spaces in
   collection labels and write-back destinations. Case- or punctuation-distinct
   folders remain separate, including on rescan of previously indexed sources.
