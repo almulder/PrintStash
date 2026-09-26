@@ -72,6 +72,23 @@ image. See UPGRADE.md before pulling.**
   keyword results. Search results use the full browsing surface with visible
   filters and simpler result cards instead of a nested results panel. Print
   duration filters show readable time in the results toolbar.
+- **First administrator from the deployment.** `VAULT_SETUP_MODE=environment`
+  with `VAULT_SETUP_ADMIN_USERNAME` and `VAULT_SETUP_ADMIN_PASSWORD` (plus
+  optional `VAULT_SETUP_ADMIN_EMAIL`) creates the first administrator at
+  startup, for app-store install forms and unattended deployments that cannot
+  use browser registration. The administrator signs in and chooses storage in
+  the browser. The variables are used once and never change an existing
+  account. The mode and variables are checked together: a contradicting
+  combination keeps setup closed instead of silently falling back to browser
+  registration.
+- App-store manifests for Runtipi, Umbrel and CasaOS/ZimaOS live in
+  `catalogues/` and are published with each release. The Unraid template now
+  shows optional administrator username, password and email fields, and the
+  `PUID`/`PGID` fields, without opening Advanced.
+- When the browser cannot create the first administrator, the setup page now
+  says why and lists what to change: the address PrintStash saw, or the
+  first-run variables that don't fit together. It previously showed a single
+  "registration is disabled" message.
 - DXF files can be imported as source Artifacts, downloaded with their original
   bytes, and included in backups. Drawing previews are not yet available.
 - Managed source Artifacts can be moved to trash and restored individually from
