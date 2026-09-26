@@ -18,6 +18,7 @@
  */
 
 import "@testing-library/jest-dom/vitest";
+import { useState } from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -77,21 +78,32 @@ function renderSidebar(over: Partial<FilterSidebarProps> = {}) {
   };
   // Model leaves are links into the vault, so the tree needs a router even
   // though nothing here navigates.
-  const result = renderApp(
-    <FilterSidebar
-      collections={TREE}
-      models={[]}
-      tags={[aTag()]}
-      printers={[aPrinter({ id: 4, name: "Voron" })]}
-      selectedCollection={null}
-      selectedTags={[]}
-      selectedPrinterId={null}
-      selectedPrinterPresence={null}
-      libraryView="organized"
-      {...handlers}
-      {...over}
-    />,
-  );
+  function SidebarHarness() {
+    const [selectedCollection, setSelectedCollection] = useState(over.selectedCollection ?? null);
+    return (
+      <>
+        <output aria-label="Selected collection">{selectedCollection ?? "All Models"}</output>
+        <FilterSidebar
+          collections={TREE}
+          models={[]}
+          tags={[aTag()]}
+          printers={[aPrinter({ id: 4, name: "Voron" })]}
+          selectedTags={[]}
+          selectedPrinterId={null}
+          selectedPrinterPresence={null}
+          libraryView="organized"
+          {...handlers}
+          {...over}
+          selectedCollection={selectedCollection}
+          onCollectionChange={(path) => {
+            handlers.onCollectionChange(path);
+            setSelectedCollection(path);
+          }}
+        />
+      </>
+    );
+  }
+  const result = renderApp(<SidebarHarness />);
   return { ...result, ...handlers };
 }
 
@@ -125,6 +137,28 @@ describe("FilterSidebar", () => {
       await user.click(screen.getByText("Parts"));
 
       expect(onCollectionChange).toHaveBeenCalledWith("parts");
+    });
+
+    it("keeps a folder open after a double-click", async () => {
+      const user = userEvent.setup();
+      renderSidebar();
+
+      await user.dblClick(screen.getByRole("button", { name: "Parts" }));
+
+      expect(screen.getByRole("status", { name: "Selected collection" })).toHaveTextContent(
+        "parts",
+      );
+    });
+
+    it("keeps the selected folder open on another click", async () => {
+      const user = userEvent.setup();
+      renderSidebar({ selectedCollection: "parts" });
+
+      await user.click(screen.getByRole("button", { name: "Parts" }));
+
+      expect(screen.getByRole("status", { name: "Selected collection" })).toHaveTextContent(
+        "parts",
+      );
     });
 
     it("returns to the whole library from the root entry", async () => {
@@ -164,6 +198,98 @@ describe("FilterSidebar", () => {
 
       expect(screen.getByRole("button", { name: "Parts" }).parentElement).toHaveTextContent(
         "Parts1",
+      );
+    });
+
+    it("shows parent totals that include models in nested folders", () => {
+      renderSidebar({
+        collections: [
+          aCollection({ id: 1, name: "Parent", path: "parent", parent_id: null, model_count: 4 }),
+          aCollection({ id: 2, name: "Child", path: "parent/child", parent_id: 1, model_count: 3 }),
+          aCollection({
+            id: 3,
+            name: "Grandchild",
+            path: "parent/child/grandchild",
+            parent_id: 2,
+            model_count: 2,
+          }),
+        ],
+        models: [
+          outlinerModel({ id: 1, collection: "parent", collection_id: 1 }),
+          outlinerModel({ id: 2, collection: "parent/child", collection_id: 2 }),
+          outlinerModel({ id: 3, collection: "parent/child/grandchild", collection_id: 3 }),
+          outlinerModel({ id: 4, collection: "parent/child/grandchild", collection_id: 3 }),
+        ],
+      });
+
+      expect(screen.getByRole("button", { name: "Parent" }).parentElement).toHaveTextContent(
+        "Parent4",
+      );
+      expect(screen.getByRole("button", { name: "Child" }).parentElement).toHaveTextContent(
+        "Child3",
+      );
+    });
+
+    it("uses the collection total when only part of a folder is loaded", () => {
+      renderSidebar({
+        collections: [aCollection({ id: 1, name: "Archive", path: "archive", model_count: 501 })],
+        models: [outlinerModel({ collection: "archive", collection_id: 1 })],
+      });
+
+      expect(screen.getByRole("button", { name: "Archive" }).parentElement).toHaveTextContent(
+        "Archive501",
+      );
+    });
+
+    it("includes multipart sets stored under child folders in the parent total", () => {
+      renderSidebar({
+        collections: [
+          aCollection({ id: 1, name: "Parent", path: "parent", parent_id: null, model_count: 0 }),
+          aCollection({ id: 2, name: "Child", path: "parent/child", parent_id: 1, model_count: 0 }),
+        ],
+        multipartModels: [multipartSet({ collection: "parent/child", collection_id: 2 })],
+      });
+
+      expect(screen.getByRole("button", { name: "Parent" }).parentElement).toHaveTextContent(
+        "Parent1",
+      );
+    });
+
+    it("counts only matching models while filtering the outliner", async () => {
+      const user = userEvent.setup();
+      renderSidebar({
+        collections: [
+          aCollection({ id: 1, name: "Parent", path: "parent", parent_id: null, model_count: 3 }),
+          aCollection({ id: 2, name: "Child", path: "parent/child", parent_id: 1, model_count: 2 }),
+        ],
+        models: [
+          outlinerModel({ id: 1, name: "Other", collection: "parent", collection_id: 1 }),
+          outlinerModel({ id: 2, name: "Match", collection: "parent/child", collection_id: 2 }),
+          outlinerModel({ id: 3, name: "Another", collection: "parent/child", collection_id: 2 }),
+        ],
+      });
+      await user.type(screen.getByPlaceholderText("Filter outliner..."), "Match");
+
+      expect(screen.getByRole("button", { name: "Parent" }).parentElement).toHaveTextContent(
+        "Parent1",
+      );
+      expect(screen.getByRole("button", { name: "Child" }).parentElement).toHaveTextContent(
+        "Child1",
+      );
+    });
+
+    it("counts only Multipart Models in the Multipart view", () => {
+      renderSidebar({
+        collections: [
+          aCollection({ id: 1, name: "Parent", path: "parent", parent_id: null, model_count: 5 }),
+          aCollection({ id: 2, name: "Child", path: "parent/child", parent_id: 1, model_count: 5 }),
+        ],
+        multipartModels: [multipartSet({ collection: "parent/child", collection_id: 2 })],
+        libraryView: "multipart",
+      });
+
+      expect(screen.getByRole("button", { name: "Parent" }).parentElement).toHaveTextContent(
+        "Parent1",
       );
     });
 
@@ -468,6 +594,12 @@ describe("FilterSidebar", () => {
   });
 
   describe("filtering by tag", () => {
+    it("keeps tag names in their original case", () => {
+      renderSidebar({ tags: [aTag({ name: "Mixed Case" })] });
+
+      expect(screen.getByRole("button", { name: /Mixed Case/ })).not.toHaveClass("uppercase");
+    });
+
     it("includes multipart sets in shared tag counts", () => {
       renderSidebar({
         tags: [aTag({ model_count: 3, multipart_model_count: 2 })],

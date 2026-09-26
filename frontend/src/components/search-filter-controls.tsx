@@ -36,9 +36,6 @@ const labels = {
   printed_before: "aiSearch.filter.printed_before",
   print_duration_min_s: "aiSearch.filter.print_duration_min_s",
   print_duration_max_s: "aiSearch.filter.print_duration_max_s",
-  family_id: "aiSearch.filter.family_id",
-  family_role: "aiSearch.filter.family_role",
-  in_family: "aiSearch.filter.in_family",
   has_similar_candidates: "aiSearch.filter.has_similar_candidates",
 } satisfies Record<string, MessageKey>;
 function filterLabel(key: string): MessageKey {
@@ -76,7 +73,7 @@ export function SearchFilterControls({
     onChange(readSearchFilters(next), q, sort);
   }
   return (
-    <div className="mb-4 space-y-3">
+    <div className="space-y-3">
       <form
         key={q}
         className="flex flex-wrap gap-2"
@@ -128,41 +125,45 @@ export function SearchFilterControls({
           ))}
         </select>
       </form>
-      <div className="flex flex-wrap gap-2" aria-label={t("aiSearch.activeFilters")}>
-        {chips.map(([key, value], index) => {
-          const label =
-            key === "print_outcome" && value === "completed"
-              ? t("aiSearch.successfulPrint")
-              : `${t(filterLabel(key))}: ${filterValueText(key, value)}`;
-          return (
-            <span
-              key={`${key}:${value}`}
-              className="inline-flex max-w-full items-center rounded-md bg-accent text-accent-foreground"
-            >
-              <Button
-                size="sm"
-                variant="ghost"
-                className="min-w-0 whitespace-normal break-words text-left"
-                onClick={() => {
-                  setEditing({ key, value, index });
-                  setEditValue(value);
-                }}
-                aria-label={t("aiSearch.editFilter", { filter: label })}
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-2" aria-label={t("aiSearch.activeFilters")}>
+          {chips.map(([key, value], index) => {
+            const label =
+              key === "print_outcome" && value === "completed"
+                ? t("aiSearch.successfulPrint")
+                : key === "print_duration_min_s" || key === "print_duration_max_s"
+                  ? `${t(filterLabel(key))} ${filterValueText(key, value)}`
+                  : `${t(filterLabel(key))}: ${filterValueText(key, value)}`;
+            return (
+              <span
+                key={`${key}:${value}`}
+                className="inline-flex max-w-full items-center rounded-md bg-accent text-accent-foreground"
               >
-                {label}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={t("aiSearch.removeFilter", { filter: label })}
-                onClick={() => updateChip(index)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </span>
-          );
-        })}
-      </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="min-w-0 whitespace-normal break-words text-left"
+                  onClick={() => {
+                    setEditing({ key, value, index });
+                    setEditValue(value);
+                  }}
+                  aria-label={t("aiSearch.editFilter", { filter: label })}
+                >
+                  {label}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t("aiSearch.removeFilter", { filter: label })}
+                  onClick={() => updateChip(index)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </span>
+            );
+          })}
+        </div>
+      )}
       <Modal
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
@@ -206,6 +207,7 @@ export function SearchFilterControls({
         >
           <label className="block space-y-1 text-sm">
             {t(editing ? filterLabel(editing.key) : "aiSearch.activeFilters")}
+            {editing?.key.includes("duration") && ` (${t("aiSearch.seconds")})`}
             {editing?.key === "print_outcome" || editing?.key === "printed" ? (
               <select
                 className="block w-full rounded-md border border-input bg-background p-2"

@@ -37,6 +37,7 @@ from app.db.models import (
     PrinterStatus,
     StagingLease,
     SystemConfig,
+    User,
 )
 from app.modules.identity.auth import create_access_token
 from app.modules.storage.storage_backend.contracts import (
@@ -502,6 +503,36 @@ class TestSafeDbUrl:
         assert lifecycle._safe_db_url("sqlite:///tmp/x.db").endswith("x.db")
 
 
+@pytest.fixture
+def startup_until_storage_binding(monkeypatch: pytest.MonkeyPatch):
+    """Run startup up to storage binding and report the accounts it left behind."""
+    from app.modules.storage import storage_paths
+
+    class StopAtStorageBinding(Exception):
+        pass
+
+    observed: dict[str, list[str]] = {}
+
+    def stop(*, recover_publications=True, recovery_only=False):
+        with lifecycle.get_session_factory().scoped_session() as session:
+            observed["users"] = [user.username for user in session.exec(select(User))]
+        raise StopAtStorageBinding
+
+    monkeypatch.setattr(storage_paths, "validate_runtime_storage_paths", lambda: None)
+    monkeypatch.setattr(lifecycle, "acquire_process_lock", lambda: object())
+    monkeypatch.setattr(lifecycle, "init_db", lambda: None)
+    monkeypatch.setattr(lifecycle, "_prepare_storage_for_startup", stop)
+
+    async def run(*, restore: bool) -> list[str]:
+        monkeypatch.setattr(lifecycle, "inspect_restore_recovery", lambda: restore)
+        with pytest.raises(StopAtStorageBinding):
+            async with lifecycle.lifespan(app_main.app):
+                pass
+        return observed["users"]
+
+    return run
+
+
 class TestLifespan:
     @pytest.mark.asyncio
     async def test_normal_startup_persists_missing_legacy_s3_root_before_composition(
@@ -594,6 +625,27 @@ class TestLifespan:
             "overlay_root": "vault-data",
             "recovery_only": True,
         }
+
+    @pytest.mark.asyncio
+    async def test_provisions_the_environment_administrator_before_binding_storage(
+        self, db_session, environment_admin, startup_until_storage_binding
+    ) -> None:
+        environment_admin("store-owner", "StoreFormPassword123")
+
+        users = await startup_until_storage_binding(restore=False)
+
+        assert users == ["store-owner"]
+
+    @pytest.mark.asyncio
+    async def test_never_provisions_during_restore_maintenance(
+        self, db_session, environment_admin, startup_until_storage_binding
+    ) -> None:
+        # A restore is rebuilding the database the owner would be written to.
+        environment_admin("store-owner", "StoreFormPassword123")
+
+        users = await startup_until_storage_binding(restore=True)
+
+        assert users == []
 
     def test_lifespan_keeps_admin_surface_when_sftp_probe_fails(
         self, _local_storage: None, db_session, monkeypatch: pytest.MonkeyPatch
@@ -877,17 +929,21 @@ class TestGcLoop:
     async def test_gc_loop_runs_every_step_even_when_each_one_fails(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """_gc_loop runs GC, delivery pruning, and inbox pruning independently —
-        one failing must not prevent the other two from running."""
+        """A failed maintenance step does not prevent later work in the same tick."""
         import asyncio
 
-        from app.modules.ingestion import inbox
+        from app.modules.identity import auth
+        from app.modules.ingestion import artifact_uploads, inbox
         from app.modules.notifications import notifications
+        from app.modules.storage import storage_inventory
 
         monkeypatch.setattr(
             lifecycle,
             "run_scheduled_gc",
             lambda: (_ for _ in ()).throw(RuntimeError("gc fail")),
+        )
+        monkeypatch.setattr(
+            storage_inventory, "refresh_inventory_sample", lambda _: None
         )
         monkeypatch.setattr(
             notifications,
@@ -899,18 +955,25 @@ class TestGcLoop:
             "prune_history",
             lambda: (_ for _ in ()).throw(RuntimeError("history fail")),
         )
+        monkeypatch.setattr(
+            artifact_uploads,
+            "reconcile_artifact_uploads",
+            lambda: (_ for _ in ()).throw(RuntimeError("upload reconciliation fail")),
+        )
+        monkeypatch.setattr(auth, "prune_expired_refresh_tokens", lambda: None)
 
         with caplog.at_level(logging.ERROR, logger=lifecycle.logger.name):
             task = asyncio.create_task(lifecycle._gc_loop())
             # One pass runs immediately (no initial sleep). Each step is a real
             # asyncio.to_thread() round-trip, so a fixed short sleep is flaky
-            # under CI load — poll for all three log lines instead, bounded by
+            # under CI load — poll for all four log lines instead, bounded by
             # a generous timeout, before cancelling ahead of sleep(3600).
-            deadline = asyncio.get_event_loop().time() + 5
+            deadline = asyncio.get_event_loop().time() + 10
             expected = {
                 "scheduled GC failed",
                 "notification delivery pruning failed",
                 "pending import history pruning failed",
+                "artifact upload reconciliation failed",
             }
             while asyncio.get_event_loop().time() < deadline:
                 messages = [r.getMessage() for r in caplog.records]
@@ -924,6 +987,7 @@ class TestGcLoop:
         assert any("scheduled GC failed" in m for m in messages)
         assert any("notification delivery pruning failed" in m for m in messages)
         assert any("pending import history pruning failed" in m for m in messages)
+        assert any("artifact upload reconciliation failed" in m for m in messages)
 
     @pytest.mark.asyncio
     async def test_gc_loop_never_runs_storage_maintenance_when_unconfigured(

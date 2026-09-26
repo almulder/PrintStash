@@ -237,6 +237,11 @@ describe("TopBar", () => {
     });
   });
 
+  it("keeps Similar models out of the desktop header", () => {
+    renderTopBar();
+    expect(screen.queryByRole("link", { name: "Similar models" })).toBeNull();
+  });
+
   describe("home link", () => {
     it("returns to the vault root by default", () => {
       renderTopBar({ at: "/settings" });

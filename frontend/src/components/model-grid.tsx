@@ -2,17 +2,12 @@
 
 import { historyFilters, historyKeys } from "@/lib/search-filters";
 
-import { CreateFamilyDialog } from "@/components/families/create-dialog";
-import { MEMBER_ROLES } from "@/types/families";
-import { FamilyTrashDialog } from "@/components/families/trash-dialog";
-import { FamilyBrowseGrid } from "@/components/families/browse";
-import { FamilyFilters, type FamilyFilterKey } from "@/components/families/filters";
-
 import { GettingStartedReminder } from "@/components/getting-started-reminder";
 
 import { knownUiText, uiText, type MessageKey } from "@/lib/locale";
 import { getErrorMessage } from "@/lib/errors";
 import { filterValueText } from "@/lib/filter-labels";
+import { collectionDisplayPath } from "@/lib/collection-display";
 
 import { useUiLocale } from "@/lib/i18n";
 
@@ -104,6 +99,7 @@ import {
 import {
   useCollections,
   useModelFacets,
+  useLibraryPrefetch,
   useModelList,
   useMultipartModels,
   useOutlinerModels,
@@ -559,9 +555,6 @@ export interface BrowserInitialData {
 export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
   useUiLocale();
   const { locale, t } = useI18n();
-  const [familyCreateOpen, setFamilyCreateOpen] = useState(false);
-  const [familyTrashOpen, setFamilyTrashOpen] = useState(false);
-  const [familySeed, setFamilySeed] = useState<ModelListItem[]>([]);
   const ui = useCallback((value: string) => translateUiText(locale, value), [locale]);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -642,7 +635,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
   );
   const requestedLibraryView = searchParams.get("type");
   const [libraryView, setLibraryView] = useState<LibraryViewMode>(() => {
-    if (!requestedLibraryView && searchParams.get("browse") === "families_collapsed") return "all";
     if (
       requestedLibraryView === "all" ||
       requestedLibraryView === "multipart" ||
@@ -814,12 +806,13 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
   }, [docView]);
 
   function handleCollectionChange(path: string | null) {
+    if (path === selectedCollection) return;
     setSelectedIds(new Set());
     const params = new URLSearchParams(searchParams.toString());
     if (path) params.set("c", path);
     else params.delete("c");
     const qs = params.toString();
-    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+    router.push(qs ? `/?${qs}` : "/", { scroll: false });
   }
 
   function handleLibraryViewChange(view: LibraryViewMode) {
@@ -829,12 +822,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
     setSelectedIds(new Set());
     const params = new URLSearchParams(searchParams.toString());
     params.delete("v");
-    if (
-      params.has("browse") ||
-      readVaultPreference("ps-vault-family-browse") === "families_collapsed"
-    ) {
-      params.set("browse", "models");
-    }
     if (view === "organized") params.delete("type");
     else params.set("type", view);
     router.replace(params.size ? `/?${params}` : "/", { scroll: false });
@@ -879,48 +866,10 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
     router.replace(qs ? `/?${qs}` : "/", { scroll: false });
   }
 
-  const familyMode =
-    libraryView === "all" &&
-    (searchParams.get("browse") ?? readVaultPreference("ps-vault-family-browse")) ===
-      "families_collapsed"
-      ? "families_collapsed"
-      : "models";
-  const rawFamilyId = Number(searchParams.get("family_id"));
-  const familyId = Number.isSafeInteger(rawFamilyId) && rawFamilyId > 0 ? rawFamilyId : undefined;
-  const familyRole = (["canonical", ...MEMBER_ROLES] as const).find(
-    (role) => role === searchParams.get("family_role"),
-  );
-  const inFamily =
-    searchParams.get("in_family") === "yes"
-      ? true
-      : searchParams.get("in_family") === "no"
-        ? false
-        : undefined;
-  function setFamilyFilter(key: FamilyFilterKey, value: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    if (key === "browse") {
-      localStorage.setItem("ps-vault-family-browse", value);
-      if (value === "families_collapsed") {
-        setLibraryView("all");
-        localStorage.setItem(LIBRARY_VIEW_KEY, "all");
-        params.set("type", "all");
-      }
-      clearSelection();
-      setSelectMode(false);
-    }
-    router.replace(params.size ? `/?${params}` : "/", { scroll: false });
-  }
-
   // Filters shared by the grid + outliner queries; only the search query and
   // pagination differ between them.
   const baseFilters: ModelListFilters = {
     ...historyFilters(searchParams),
-    family_id: familyId,
-    family_role: familyRole,
-    in_family: inFamily,
-    browse: familyMode,
     tag: selectedTags.length ? selectedTags : undefined,
     printer_id: canViewPrinters ? (selectedPrinterId ?? undefined) : undefined,
     printer_presence:
@@ -942,23 +891,33 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
     uploaded_after: searchParams.get("uploaded_after") || undefined,
     uploaded_before: searchParams.get("uploaded_before") || undefined,
   };
-  const facetQuery = useModelFacets({
+  // One builder per folder-scoped query, shared by the live queries and the
+  // hover prefetch so a warmed folder fills exactly the entries it will read.
+  // They default to the current folder rather than taking it as an argument:
+  // the compiler would otherwise treat the call as able to mutate it and drop
+  // the memoization of everything derived from it below.
+  const folderModelFilters = (
+    collection: string | null = selectedCollection,
+  ): ModelListFilters => ({
     ...baseFilters,
-    collection: selectedCollection ?? undefined,
+    collection: collection ?? undefined,
+    // A search spans the whole library; a folder view lists only its direct
+    // children so subfolders' models don't leak into the parent (#30).
     direct: !searchQuery,
     q: searchQuery,
   });
+  const folderMultipartFilters = (collection: string | null = selectedCollection) => ({
+    collection: collection ?? undefined,
+    direct: !searchQuery,
+    q: searchQuery,
+    tag: selectedTags.length ? selectedTags : undefined,
+    favorites: favoritesOnly || undefined,
+    limit: 500,
+  });
+  const facetQuery = useModelFacets(folderModelFilters());
 
   function writeFilterUrl(filters: SavedViewRead["filters"]) {
     const params = new URLSearchParams();
-    if (filters.browse === "families_collapsed") {
-      setLibraryView("all");
-      params.set("type", "all");
-    }
-    params.set("browse", filters.browse === "families_collapsed" ? filters.browse : "models");
-    if (filters.family_id) params.set("family_id", String(filters.family_id));
-    if (filters.family_role) params.set("family_role", filters.family_role);
-    if (filters.in_family != null) params.set("in_family", filters.in_family ? "yes" : "no");
     if (filters.collection) params.set("c", filters.collection);
     if (filters.q) params.set("q", filters.q);
     filters.tag.forEach((tag) => params.append("tag", tag));
@@ -1018,10 +977,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
     return {
       ...historyFilters(searchParams),
       sort: sortKey,
-      family_id: familyId ?? null,
-      family_role: familyRole ?? null,
-      in_family: inFamily ?? null,
-      browse: familyMode,
       collection: selectedCollection,
       direct: !searchQuery,
       tag: selectedTags,
@@ -1050,10 +1005,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
     activeSavedView !== null &&
     viewFilterSignature({
       ...activeSavedView.filters,
-      family_id: activeSavedView.filters.family_id ?? null,
-      family_role: activeSavedView.filters.family_role ?? null,
-      in_family: activeSavedView.filters.in_family ?? null,
-      browse: activeSavedView.filters.browse ?? "models",
       has_similar_candidates: activeSavedView.filters.has_similar_candidates ?? null,
       collection: activeSavedView.filters.collection ?? null,
       q: activeSavedView.filters.q ?? null,
@@ -1091,33 +1042,15 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
   // The paginated grid. `keepPreviousData` (in the hook) holds the current page
   // on screen while a new search/folder loads, and results are cached per filter
   // set so backspacing a query or re-entering a folder is instant.
-  const modelQuery = useModelList(
-    {
-      ...baseFilters,
-      collection: selectedCollection ?? undefined,
-      // A search spans the whole library; a folder view lists only its direct
-      // children so subfolders' models don't leak into the parent (#30).
-      direct: !searchQuery,
-      q: searchQuery,
-    },
-    PAGE_SIZE,
-    sortKey,
-    familyMode === "models",
-  );
-  const multipartQuery = useMultipartModels(
-    {
-      collection: selectedCollection ?? undefined,
-      direct: !searchQuery,
-      q: searchQuery,
-      tag: selectedTags.length ? selectedTags : undefined,
-      favorites: favoritesOnly || undefined,
-      limit: 500,
-    },
-    { enabled: familyMode === "models" && libraryView !== "components" },
-  );
+  const multipartListEnabled = libraryView !== "components";
+  const modelQuery = useModelList(folderModelFilters(), PAGE_SIZE, sortKey, true);
+  const multipartQuery = useMultipartModels(folderMultipartFilters(), {
+    enabled: multipartListEnabled,
+  });
+  const libraryPrefetch = useLibraryPrefetch();
   const multipartMembershipQuery = useMultipartModels(
     { limit: 500 },
-    { enabled: familyMode === "models" && libraryView === "components" },
+    { enabled: libraryView === "components" },
   );
   const multipartGroupingQuery = useMultipartModels(
     {
@@ -1125,7 +1058,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
       favorites: favoritesOnly || undefined,
       limit: 500,
     },
-    { enabled: familyMode === "models" && libraryView === "organized" && !searchQuery },
+    { enabled: libraryView === "organized" && !searchQuery },
   );
   const multipartOutlinerQuery = useMultipartModels(
     {
@@ -1205,11 +1138,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
   // selections safe. We clear it when navigating folders (see below) so a hidden
   // off-screen selection doesn't linger.
   const [selectMode, setSelectMode] = useState(false);
-  const familyFilterCount =
-    Number(familyMode === "families_collapsed") +
-    Number(familyId !== undefined) +
-    Number(familyRole !== undefined) +
-    Number(inFamily !== undefined);
   const showLibraryTools = libraryToolsOpen;
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -1363,7 +1291,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
         succeeded += 1;
       } catch {
         failed += 1;
-        failedFolders.push(collection.path);
+        failedFolders.push(collectionDisplayPath(collections, collection.path) ?? collection.name);
       }
     }
     if (succeeded) toast.success(uiText(success, { count: succeeded }));
@@ -1407,7 +1335,13 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           movedCollections.push(collection);
         } catch {
           failed += 1;
-          failureDetails.push(uiText("Folder: {value1}", { value1: String(collection.path) }));
+          failureDetails.push(
+            uiText("Folder: {value1}", {
+              value1: String(
+                collectionDisplayPath(collections, collection.path) ?? collection.name,
+              ),
+            }),
+          );
         }
       }
       if (succeeded)
@@ -1466,7 +1400,13 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           succeeded += 1;
         } catch {
           failed += 1;
-          failureDetails.push(uiText("Folder: {value1}", { value1: String(collection.path) }));
+          failureDetails.push(
+            uiText("Folder: {value1}", {
+              value1: String(
+                collectionDisplayPath(collections, collection.path) ?? collection.name,
+              ),
+            }),
+          );
         }
       }
       if (deletedModelIds.length)
@@ -1528,7 +1468,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
   }
   const hasActiveFilters =
     !!selectedCollection ||
-    familyFilterCount > 0 ||
     favoritesOnly ||
     selectedTags.length > 0 ||
     selectedPrinterId !== null ||
@@ -1576,6 +1515,16 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
     () => collections.find((c) => c.path === selectedCollection) ?? null,
     [collections, selectedCollection],
   );
+  // Warm a folder on hover/focus: the pointer's travel to the click hides most
+  // of the round-trip, so entering the folder renders from cache.
+  function prefetchFolder(path: string) {
+    if (path === selectedCollection) return;
+    void libraryPrefetch.modelList(folderModelFilters(path), PAGE_SIZE, sortKey);
+    if (multipartListEnabled) void libraryPrefetch.multipartModels(folderMultipartFilters(path));
+    void libraryPrefetch.modelFacets(folderModelFilters(path));
+    const target = collections.find((collection) => collection.path === path);
+    if (target?.has_readme) void libraryPrefetch.collectionReadme(target.id);
+  }
   const canAdminSelectedCollection =
     user?.is_superuser || selectedCollectionRow?.effective_role === "admin";
   const hasWritableCollection = collections.some(canWriteCollection);
@@ -1729,40 +1678,15 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
       "has_similar_candidates",
       "uploaded_after",
       "uploaded_before",
-      "family_id",
-      "family_role",
-      "in_family",
-      "browse",
       ...historyKeys,
     ])
       params.delete(key);
-    localStorage.removeItem("ps-vault-family-browse");
     const qs = params.toString();
     router.replace(qs ? `/?${qs}` : "/", { scroll: false });
   }
 
   const activeFilterItems: { label: string; onRemove: () => void }[] = (() => {
     const items: { label: string; onRemove: () => void }[] = [];
-    if (familyMode === "families_collapsed")
-      items.push({
-        label: t("families.browseFamilies"),
-        onRemove: () => setFamilyFilter("browse", "models"),
-      });
-    if (familyId !== undefined)
-      items.push({
-        label: `${t("families.family")}: ${familyId}`,
-        onRemove: () => setFamilyFilter("family_id", ""),
-      });
-    if (familyRole !== undefined)
-      items.push({
-        label: t(`families.role.${familyRole}`),
-        onRemove: () => setFamilyFilter("family_role", ""),
-      });
-    if (inFamily !== undefined)
-      items.push({
-        label: t(inFamily ? "families.grouped" : "families.ungrouped"),
-        onRemove: () => setFamilyFilter("in_family", ""),
-      });
     if (favoritesOnly) items.push({ label: uiText("Favorites"), onRemove: toggleFavorites });
     if (query.trim()) {
       items.push({ label: `${ui("Search")}: ${query.trim()}`, onRemove: clearSearch });
@@ -1877,19 +1801,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           preloadItems={dropPreload?.items ?? null}
           initialMode={dropPreload?.mode}
         />
-        {familyTrashOpen && <FamilyTrashDialog onClose={() => setFamilyTrashOpen(false)} />}
-        {familyCreateOpen && (
-          <CreateFamilyDialog
-            models={familySeed}
-            onClose={() => setFamilyCreateOpen(false)}
-            onCreated={(family) => {
-              setFamilyCreateOpen(false);
-              clearSelection();
-              refresh();
-              router.push(`/families/${family.id}`);
-            }}
-          />
-        )}
         <NewMultipartModelModal
           key={selectedCollectionRow?.id ?? "vault"}
           open={multipartCreateOpen}
@@ -1915,15 +1826,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           onCreateCollection={handleOpenCreateCollection}
           canViewPrinters={canViewPrinters}
           loading={facetsLoading || facetQuery.isLoading}
-          familyFilters={
-            <FamilyFilters
-              mode={familyMode}
-              familyId={familyId}
-              role={familyRole}
-              membership={inFamily}
-              onChange={setFamilyFilter}
-            />
-          }
           structuredFilters={
             <StructuredFilters
               facets={facetQuery.data}
@@ -1960,6 +1862,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           selectedPrinterId={selectedPrinterId}
           selectedPrinterPresence={selectedPrinterPresence}
           onCollectionChange={handleCollectionChange}
+          onCollectionIntent={prefetchFolder}
           onTagsChange={setSelectedTags}
           onPrinterChange={setSelectedPrinterId}
           onPrinterPresenceChange={setSelectedPrinterPresence}
@@ -1969,15 +1872,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           onDeleteCollection={handleDeleteCollection}
           canViewPrinters={canViewPrinters}
           loading={facetsLoading || facetQuery.isLoading}
-          familyFilters={
-            <FamilyFilters
-              mode={familyMode}
-              familyId={familyId}
-              role={familyRole}
-              membership={inFamily}
-              onChange={setFamilyFilter}
-            />
-          }
           structuredFilters={
             <StructuredFilters
               facets={facetQuery.data}
@@ -2079,7 +1973,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                     className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-xs transition-colors hover:bg-popover-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{path}</span>
+                    <span className="truncate">{collectionDisplayPath(collections, path)}</span>
                   </button>
                 ))}
                 <button
@@ -2106,13 +2000,11 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                     {selectedName ?? uiText("All Models")}
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    {familyMode === "families_collapsed"
-                      ? t("families.browseDescription")
-                      : loading
-                        ? uiText("Loading...")
-                        : uiText(selectedName ? "counts.collectionItems" : "counts.items", {
-                            count: displayCount,
-                          })}
+                    {loading
+                      ? uiText("Loading...")
+                      : uiText(selectedName ? "counts.collectionItems" : "counts.items", {
+                          count: displayCount,
+                        })}
                     {refreshing && (
                       <span className="ml-2 font-mono text-xs text-muted-foreground">
                         {uiText("Updating...")}
@@ -2194,6 +2086,21 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                       <SlidersHorizontal className="h-4 w-4" aria-hidden />
                       {t("vault.libraryTools")}
                     </Button>
+                    {docView === "models" && (
+                      <Button
+                        variant="ghost"
+                        role="menuitem"
+                        className="w-full justify-start"
+                        disabled={!user?.is_superuser && !canWriteCollection(selectedCollectionRow)}
+                        onClick={() => {
+                          setMoreOpen(false);
+                          setMultipartCreateOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" aria-hidden />
+                        {t("multipart.new")}
+                      </Button>
+                    )}
                     {auth.isAuthenticated && (
                       <>
                         <button
@@ -2338,6 +2245,24 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                   >
                     {uiText("Upload")}
                   </Button>
+                  {docView === "models" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setMultipartCreateOpen(true)}
+                      disabled={!user?.is_superuser && !canWriteCollection(selectedCollectionRow)}
+                      title={
+                        user?.is_superuser || canWriteCollection(selectedCollectionRow)
+                          ? undefined
+                          : t("multipart.editAccess")
+                      }
+                      className="h-10 sm:h-8"
+                    >
+                      <Plus className="h-4 w-4" aria-hidden />
+                      {t("multipart.new")}
+                    </Button>
+                  )}
                 </div>
                 <Button
                   variant={showLibraryTools ? "secondary" : "outline"}
@@ -2393,6 +2318,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
               <CollectionReadme
                 key={selectedCollectionRow.id}
                 collectionId={selectedCollectionRow.id}
+                hasReadme={selectedCollectionRow.has_readme}
                 canEdit={!!user?.is_superuser || canWriteCollection(selectedCollectionRow)}
               />
             </div>
@@ -2510,21 +2436,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                   <Plus className="w-4 h-4 text-muted-foreground" />
                   {uiText("New collection")}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => setMultipartCreateOpen(true)}
-                  disabled={!user?.is_superuser && !canWriteCollection(selectedCollectionRow)}
-                  title={
-                    user?.is_superuser || canWriteCollection(selectedCollectionRow)
-                      ? undefined
-                      : t("multipart.editAccess")
-                  }
-                  className="h-10 sm:h-8"
-                >
-                  <Plus className="h-4 w-4" /> {t("multipart.new")}
-                </Button>{" "}
                 {auth.isAuthenticated && (
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
@@ -2585,32 +2496,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  disabled={!auth.isAuthenticated}
-                  onClick={() => setFamilyTrashOpen(true)}
-                >
-                  {t("families.trash")}
-                </Button>
-                <Button
-                  size="xs"
-                  variant="outline"
-                  disabled={!auth.isAuthenticated || selectedCollectionIds.size > 0}
-                  onClick={() => {
-                    setFamilySeed(
-                      [...selectedModelSnapshot.current.values()].filter((model) =>
-                        selectedIds.has(model.id),
-                      ),
-                    );
-                    setFamilyCreateOpen(true);
-                  }}
-                >
-                  <Boxes className="h-3.5 w-3.5" aria-hidden />
-                  {t("families.create")}
-                </Button>
-              </div>
             </section>
           )}
 
@@ -2619,7 +2504,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
               <span className="font-mono text-muted-foreground">
                 {uiText("{value1} selected", { value1: String(selectionCount ?? "") })}
               </span>
-              {docView === "models" && familyMode === "models" && (
+              {docView === "models" && (
                 <>
                   <button
                     type="button"
@@ -2663,16 +2548,6 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
               collectionId={selectedCollectionRow?.id ?? null}
               collectionPath={selectedCollection}
               canCreate={!!user?.is_superuser || canWriteCollection(selectedCollectionRow)}
-            />
-          ) : familyMode === "families_collapsed" ? (
-            <FamilyBrowseGrid
-              params={{
-                ...baseFilters,
-                collection: selectedCollection ?? undefined,
-                direct: !searchQuery,
-                q: searchQuery,
-                sort: sortKey,
-              }}
             />
           ) : (
             <div className="flex-1 flex flex-col bg-background">
@@ -2755,6 +2630,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                         key={collection.id}
                         collection={collection}
                         onSelect={handleCollectionChange}
+                        onIntent={prefetchFolder}
                         onDropModel={canUploadToVault ? handleMoveModel : undefined}
                         selectable={selectMode}
                         selected={selectedCollectionIds.has(collection.id)}
@@ -2766,6 +2642,10 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                         <MultipartModelCard
                           key={`multipart-${item.value.id}`}
                           item={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           returnTo={currentLibraryHref}
                           availableTags={tags}
                           onDataChange={refresh}
@@ -2774,6 +2654,10 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                         <ModelCard
                           key={item.value.id}
                           model={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           selectable={selectMode}
                           selected={selectedIds.has(item.value.id)}
                           onToggleSelect={toggleSelect}
@@ -2801,7 +2685,9 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                       <CollectionListRow
                         key={collection.id}
                         collection={collection}
+                        displayPath={collectionDisplayPath(collections, collection.path)}
                         onSelect={handleCollectionChange}
+                        onIntent={prefetchFolder}
                         onDropModel={canUploadToVault ? handleMoveModel : undefined}
                         selectable={selectMode}
                         selected={selectedCollectionIds.has(collection.id)}
@@ -2813,12 +2699,20 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
                         <MultipartModelListRow
                           key={`multipart-${item.value.id}`}
                           item={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           returnTo={currentLibraryHref}
                         />
                       ) : (
                         <ModelListRow
                           key={item.value.id}
                           model={item.value}
+                          collectionLabel={collectionDisplayPath(
+                            collections,
+                            item.value.collection,
+                          )}
                           selectable={selectMode}
                           selected={selectedIds.has(item.value.id)}
                           onToggleSelect={toggleSelect}
@@ -2834,7 +2728,7 @@ export function ModelBrowser({ initial }: { initial?: BrowserInitialData }) {
           )}
         </main>
 
-        {docView === "models" && familyMode === "models" && (
+        {docView === "models" && (
           <BatchToolbar
             modelCount={selectedIds.size}
             selectedCollections={selectedCollections}
@@ -2900,6 +2794,7 @@ function useModelDropTarget(path: string, onDropModel?: (modelId: number, path: 
 function CollectionFolderCard({
   collection,
   onSelect,
+  onIntent,
   onDropModel,
   selectable,
   selected,
@@ -2907,6 +2802,8 @@ function CollectionFolderCard({
 }: {
   collection: CollectionRead;
   onSelect: (path: string) => void;
+  /** The user is about to open this folder (hover or focus): warm its data. */
+  onIntent?: (path: string) => void;
   onDropModel?: (modelId: number, path: string) => void;
   selectable?: boolean;
   selected?: boolean;
@@ -2920,6 +2817,8 @@ function CollectionFolderCard({
         role="button"
         tabIndex={0}
         data-collection-path={collection.path}
+        onPointerEnter={() => !selectable && onIntent?.(collection.path)}
+        onFocus={() => !selectable && onIntent?.(collection.path)}
         onClick={() => (selectable ? onToggleSelect?.(collection.id) : onSelect(collection.path))}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
@@ -2967,14 +2866,19 @@ function CollectionFolderCard({
 
 function CollectionListRow({
   collection,
+  displayPath,
   onSelect,
+  onIntent,
   onDropModel,
   selectable,
   selected,
   onToggleSelect,
 }: {
   collection: CollectionRead;
+  displayPath: string | null;
   onSelect: (path: string) => void;
+  /** The user is about to open this folder (hover or focus): warm its data. */
+  onIntent?: (path: string) => void;
   onDropModel?: (modelId: number, path: string) => void;
   selectable?: boolean;
   selected?: boolean;
@@ -2988,6 +2892,8 @@ function CollectionListRow({
         role="button"
         tabIndex={0}
         data-collection-path={collection.path}
+        onPointerEnter={() => !selectable && onIntent?.(collection.path)}
+        onFocus={() => !selectable && onIntent?.(collection.path)}
         onClick={() => (selectable ? onToggleSelect?.(collection.id) : onSelect(collection.path))}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
@@ -3021,7 +2927,7 @@ function CollectionListRow({
             {collection.name}
           </span>
           <span className="block font-mono text-3xs text-muted-foreground truncate">
-            {collection.path}
+            {displayPath}
           </span>
         </span>
         <span className="w-24 text-right text-xs font-mono text-muted-foreground truncate hidden sm:block">
@@ -3041,9 +2947,11 @@ function CollectionListRow({
 
 function MultipartModelListRow({
   item,
+  collectionLabel,
   returnTo,
 }: {
   item: MultipartModelListItem;
+  collectionLabel: string | null;
   returnTo: string;
 }) {
   useUiLocale();
@@ -3069,7 +2977,7 @@ function MultipartModelListRow({
         </span>
       </span>
       <span className="hidden w-24 truncate text-right font-mono text-xs text-muted-foreground sm:block">
-        {item.collection || "—"}
+        {collectionLabel || "—"}
       </span>
       <span className="w-20 text-right font-mono text-xs text-muted-foreground">
         {item.model_count}
@@ -3083,12 +2991,14 @@ function MultipartModelListRow({
 
 function ModelListRow({
   model,
+  collectionLabel,
   selectable = false,
   selected = false,
   onToggleSelect,
   draggable = false,
 }: {
   model: ModelListItem;
+  collectionLabel: string | null;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: number, range?: boolean) => void;
@@ -3150,7 +3060,7 @@ function ModelListRow({
               {model.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag}
-                  className="bg-accent text-accent-foreground px-1 py-px rounded font-mono text-3xs uppercase tracking-wider"
+                  className="bg-accent text-accent-foreground px-1 py-px rounded font-mono text-3xs tracking-wider"
                 >
                   {tag}
                 </span>
@@ -3172,7 +3082,7 @@ function ModelListRow({
           )}
         </div>
         <span className="w-24 text-right text-xs font-mono text-muted-foreground truncate hidden sm:block">
-          {model.collection || "—"}
+          {collectionLabel || "—"}
         </span>
         <span className="w-20 text-right text-xs font-mono text-muted-foreground">
           {model.file_count}

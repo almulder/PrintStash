@@ -126,10 +126,8 @@ test.describe("storage provider setup", () => {
       .toEqual({ provider: "webdav", tier: "guarded" });
 
     await page.goto("/settings?section=storage");
-    await expect(
-      page.getByRole("heading", { name: "Storage configuration", exact: true }),
-    ).toBeVisible();
-    await expect(page.getByText("Active: Guarded")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Current storage", exact: true })).toBeVisible();
+    await expect(page.getByText("Storage safety: Guarded")).toBeVisible();
     await expect(page.getByPlaceholder("Stored — leave blank to keep")).toBeVisible();
 
     // Continue through the public UI after restart. This deliberately does not

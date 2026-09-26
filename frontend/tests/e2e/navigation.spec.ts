@@ -17,6 +17,39 @@ import { useMockApi } from "./_setup";
 useMockApi();
 
 test.describe("app navigation", () => {
+  test("keeps the desktop header focused on search", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto("/");
+    await expect(page.locator("header").getByRole("link", { name: "Similar models" })).toHaveCount(
+      0,
+    );
+    await expect(page.locator("header").getByRole("searchbox")).toBeVisible();
+  });
+
+  test("desktop library keeps Similar models in Model detail", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Similar models", exact: true })).toHaveCount(0);
+    await page.goto("/models/1");
+    const similar = page.getByRole("tab", { name: "Similar", exact: true });
+    await expect(similar).toBeVisible();
+    await similar.click();
+    await expect(similar).toHaveAttribute("aria-selected", "true");
+    await page.screenshot({ path: testInfo.outputPath("similar-entry-desktop.png") });
+  });
+
+  test("mobile tab opens Similar models", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "All Models" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("similar-entry-mobile.png") });
+
+    await page.getByRole("link", { name: "Similar", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/library\/similar$/);
+    await expect(page.getByRole("heading", { name: "Similar models" })).toBeVisible();
+  });
+
   test("desktop navigation reaches Pending Imports and marks nested routes active", async ({
     page,
   }) => {

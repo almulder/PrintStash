@@ -310,8 +310,9 @@ libraries and atomically publish the complete model. The cancellation endpoint
 is `POST /api/v1/inference/models/downloads/{job_id}/cancel`. Startup never
 fetches weights. Failed/cancelled installs leave existing versions intact.
 
-Mount a writable model volume at `VAULT_EMBEDDING_CACHE_DIR` (default
-`/data/ai-models`). `VAULT_EMBEDDING_CACHE_MAX_BYTES` defaults to 4 GiB;
+Models are stored in `/data/ai-models`, on the same `/data` volume as the rest of
+PrintStash, so they survive image updates; set `VAULT_EMBEDDING_CACHE_DIR` to
+keep them elsewhere. `VAULT_EMBEDDING_CACHE_MAX_BYTES` defaults to 4 GiB;
 `VAULT_EMBEDDING_DOWNLOAD_ENABLED` is off by default. An explicitly configured
 HTTPS mirror uses `VAULT_EMBEDDING_MIRROR_URL`; all redirect origins must remain
 within the registry/CDN/mirror policy. Model acquisition reserves physical disk
@@ -491,8 +492,7 @@ not generated-caption quality.
 ## Independent consumers
 
 The existing Similar Models consumer uses `search.vector_store` through its own
-`similarity.vector_sources` adapter. The shared store knows no SimilarityRun,
-Family or candidate lifecycle. Consumers supply fresh SQL that fences their
+`similarity.vector_sources` adapter. The shared store knows no SimilarityRun or candidate lifecycle. Consumers supply fresh SQL that fences their
 source identity/hash, liveness, permissions and work lease; the store validates
 Space identity, vector dimensions, typed unit keys and active generation state.
 It commits no source mutation or inference implicitly. `initialize` is the
@@ -500,14 +500,11 @@ explicit canary-validation transaction for first adoption; later writes join
 the caller's transaction. External `algorithm_version` belongs to the consumer
 and never changes the inference Space hash.
 
-An installed-app test physically removes Similar Models and the Families package,
-runs the real Alembic migration chain, uploads a Model, creates the other three
-Subject types, and serves lexical/semantic Search through a local ONNX contract
-model. A float-to-int8 replacement keeps the serving generation available.
-Search and ordinary Model projections do not load unavailable Family annotations;
-explicit Family filters fail closed when the capability is absent. Another
-installation test removes inference too and keeps manual library/Family work
-usable. Optional composition omits unavailable routes and tasks.
+An installed-app test physically removes Similar Models, runs the real
+Alembic migration chain, uploads a Model, creates the other three Subject
+types, and serves lexical/semantic Search through a local ONNX contract model.
+A float-to-int8 replacement keeps the serving generation available. Optional
+composition omits unavailable routes and tasks.
 
 Compatible v1 rows retain IDs, keys, hashes, dimensions and exact BLOB bytes
 through the additive vector migration. Existing generations are adopted only

@@ -44,12 +44,13 @@ test.describe("AI Search", () => {
       const queryImage = await thumbnailResponse.body();
       const mimeType = thumbnailResponse.headers()["content-type"].split(";")[0];
       await page.goto("/settings?section=ai-search");
-      await page.getByRole("button", { name: "Advanced AI controls" }).click();
+      await page.getByRole("tab", { name: "Technical" }).click();
       const form = page.getByRole("form", { name: "AI Search", exact: true });
       await form.getByRole("checkbox", { name: "Enable AI Search", exact: true }).check();
       await form.getByRole("checkbox", { name: "Run AI on this machine", exact: true }).check();
       await form.getByRole("button", { name: "Save search settings" }).click();
       await expect(page.getByText("AI Search settings saved", { exact: true })).toBeVisible();
+      await page.getByRole("tab", { name: "Search types" }).click();
       const catalog: InferenceModel[] = await (
         await page.request.get(`${API}/api/v1/inference/models`)
       ).json();
@@ -61,10 +62,8 @@ test.describe("AI Search", () => {
           (!requestedModel || entry.key === requestedModel),
       );
       expect(model).toBeDefined();
-      await page.getByRole("combobox", { name: "Search type" }).selectOption("multiview");
-      await page
-        .getByRole("combobox", { name: "AI model or server", exact: true })
-        .selectOption(`local:${model!.id}`);
+      await page.locator('input[name="ai-search-profile"][value="multiview"]').check();
+      await page.getByRole("radio", { name: model!.key }).check();
       await page.getByRole("button", { name: "Build new index" }).click();
       await expect
         .poll(
@@ -146,12 +145,13 @@ test.describe("AI Search", () => {
       await expect(page).toHaveURL(/\/documents\/\d+$/);
       documentId = page.url().split("/").at(-1);
       await page.goto("/settings?section=ai-search");
-      await page.getByRole("button", { name: "Advanced AI controls" }).click();
+      await page.getByRole("tab", { name: "Technical" }).click();
       const form = page.getByRole("form", { name: "AI Search", exact: true });
       await form.getByRole("checkbox", { name: "Enable AI Search", exact: true }).check();
       await form.getByRole("checkbox", { name: "Run AI on this machine", exact: true }).check();
       await form.getByRole("button", { name: "Save search settings" }).click();
       await expect(page.getByText("AI Search settings saved", { exact: true })).toBeVisible();
+      await page.getByRole("tab", { name: "Search types" }).click();
       const catalog: InferenceModel[] = await (
         await page.request.get(`${API}/api/v1/inference/models`)
       ).json();
@@ -163,15 +163,13 @@ test.describe("AI Search", () => {
           (!requestedTextModel || entry.key === requestedTextModel),
       );
       expect(model).toBeDefined();
-      await page
-        .getByRole("combobox", { name: "AI model or server", exact: true })
-        .selectOption(`local:${model!.id}`);
+      await page.getByRole("radio", { name: model!.key }).check();
       await page.getByRole("button", { name: "Verify local model" }).click();
       await expect(page.getByText("Local model verified", { exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Estimate resources" }).click();
       await expect(page.getByRole("status").filter({ hasText: /passages · up to/ })).toBeVisible();
       for (const [label, width, height] of [
-        ["desktop", 1280, 900],
+        ["desktop", 1920, 1080],
         ["mobile", 390, 844],
       ] as const) {
         await page.setViewportSize({ width, height });
@@ -185,9 +183,6 @@ test.describe("AI Search", () => {
         });
       }
       await page.getByRole("button", { name: "Build new index" }).click();
-      await expect(page.getByText("Search status").locator("..")).toContainText(model!.key, {
-        timeout: 60000,
-      });
       await expect
         .poll(
           async () => {
@@ -199,6 +194,9 @@ test.describe("AI Search", () => {
           { timeout: 90000 },
         )
         .toBe(true);
+      await expect(page.getByText("Search currently in use").locator("..")).toContainText(
+        model!.key,
+      );
       await page.goto("/");
       const requests: string[] = [];
       page.on("request", (request) => {
@@ -216,12 +214,35 @@ test.describe("AI Search", () => {
       await box.click();
       await page.getByRole("button", { name: "Search with AI" }).click();
       await expect(page).toHaveURL(/\/search\?q=bike\+lamp\+attachment/);
+      await expect
+        .poll(() =>
+          requests.some((url) => {
+            const params = new URL(url).searchParams;
+            return params.get("mode") === "hybrid" && params.get("instant") !== "true";
+          }),
+        )
+        .toBe(true);
+      const aiMode = page.getByRole("button", { name: "Turn off AI search" });
+      await expect(aiMode).toHaveAttribute("aria-pressed", "true");
+      const beforeKeywordSwitch = requests.length;
+      await aiMode.click();
+      await expect(page).toHaveURL(/\/search\?q=bike\+lamp\+attachment&mode=lexical/);
+      await expect
+        .poll(() =>
+          requests.slice(beforeKeywordSwitch).some((url) => {
+            const params = new URL(url).searchParams;
+            return params.get("mode") === "lexical" && params.get("instant") !== "true";
+          }),
+        )
+        .toBe(true);
+      await page.getByRole("button", { name: "Search with AI" }).click();
+      await expect(page).toHaveURL(/\/search\?q=bike\+lamp\+attachment/);
       const link = page.getByRole("link", { name, exact: true });
       await expect(link).toBeVisible();
       await expect(page.getByText("Why this result")).toHaveCount(0);
       for (const [label, width, height] of [
         ["mobile", 390, 844],
-        ["desktop", 1280, 900],
+        ["desktop", 1920, 1080],
       ] as const) {
         await page.setViewportSize({ width, height });
         expect(
@@ -289,12 +310,13 @@ test.describe("AI Search", () => {
       });
       modelId = Number((await modelCard(page, name).getAttribute("href"))!.split("/").at(-1));
       await page.goto("/settings?section=ai-search");
-      await page.getByRole("button", { name: "Advanced AI controls" }).click();
+      await page.getByRole("tab", { name: "Technical" }).click();
       const form = page.getByRole("form", { name: "AI Search", exact: true });
       await form.getByRole("checkbox", { name: "Enable AI Search", exact: true }).check();
       await form.getByRole("checkbox", { name: "Run AI on this machine", exact: true }).check();
       await form.getByRole("button", { name: "Save search settings" }).click();
       await expect(page.getByText("AI Search settings saved", { exact: true })).toBeVisible();
+      await page.getByRole("tab", { name: "Search types" }).click();
       const catalog: InferenceModel[] = await (
         await page.request.get(`${API}/api/v1/inference/models`)
       ).json();
@@ -306,10 +328,8 @@ test.describe("AI Search", () => {
         ) ?? catalog.find((entry) => entry.installed && entry.modality === "point_cloud");
       expect(clip).toBeDefined();
       expect(point).toBeDefined();
-      await page.getByRole("combobox", { name: "Search type" }).selectOption("thumbnail");
-      await page
-        .getByRole("combobox", { name: "AI model or server", exact: true })
-        .selectOption(`local:${clip!.id}`);
+      await page.locator('input[name="ai-search-profile"][value="thumbnail"]').check();
+      await page.getByRole("radio", { name: clip!.key }).check();
       await page.getByRole("button", { name: "Build new index" }).click();
       await expect
         .poll(
@@ -317,10 +337,8 @@ test.describe("AI Search", () => {
           { timeout: 90000 },
         )
         .toContain("thumbnail");
-      await page.getByRole("combobox", { name: "Search type" }).selectOption("point_cloud");
-      await page
-        .getByRole("combobox", { name: "AI model or server", exact: true })
-        .selectOption(`local:${point!.id}`);
+      await page.locator('input[name="ai-search-profile"][value="point_cloud"]').check();
+      await page.getByRole("radio", { name: point!.key }).check();
       await page.getByRole("button", { name: "Build new index" }).click();
       await expect
         .poll(

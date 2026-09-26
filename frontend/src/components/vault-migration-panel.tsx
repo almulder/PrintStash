@@ -6,6 +6,7 @@ import { Input, inputClasses } from "@/components/ui/input";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { Localized } from "@/components/ui/localized";
 import { StorageProviderPicker, defaultProviderValues } from "@/components/storage-provider-picker";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getStorageProviders } from "@/lib/api/config";
 import { listBackupSources, type BackupMeta } from "@/lib/api/backup";
 import {
@@ -418,9 +419,21 @@ export function VaultMigrationPanel() {
           </Button>
         </div>
         {loading ? (
-          <p role="status" className="p-4 text-sm text-muted-foreground">
-            {t("migration.loading")}
-          </p>
+          <div role="status" aria-label={t("migration.loading")} className="space-y-4 p-4 sm:p-5">
+            <Skeleton className="h-5 w-40" />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[0, 1, 2, 3].map((item) => (
+                <Skeleton key={item} className="h-12 w-full" />
+              ))}
+            </div>
+            <Skeleton className="h-5 w-28" />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[0, 1].map((item) => (
+                <Skeleton key={item} className="h-16 w-full" />
+              ))}
+            </div>
+            <span className="sr-only">{t("migration.loading")}</span>
+          </div>
         ) : (
           <>
             {error && (
@@ -468,44 +481,48 @@ export function VaultMigrationPanel() {
                     setValues((current) => ({ ...current, [name]: value }))
                   }
                 />
-                <fieldset className="space-y-3 border-t pt-4">
-                  <legend className="text-sm font-semibold">{t("migration.policy")}</legend>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <label className="space-y-1 text-xs">
-                      {t("migration.retentionDays")}
-                      <Input
-                        type="number"
-                        min={0}
-                        max={3650}
-                        value={retentionDays}
-                        disabled={busy}
-                        onChange={(event) => setRetentionDays(Number(event.target.value))}
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs">
-                      {t("migration.concurrency")}
-                      <Input
-                        type="number"
-                        min={1}
-                        max={4}
-                        value={concurrency}
-                        disabled={busy}
-                        onChange={(event) => setConcurrency(Number(event.target.value))}
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs">
-                      {t("migration.bandwidth")}
-                      <Input
-                        type="number"
-                        min={1024}
-                        value={bandwidth}
-                        disabled={busy}
-                        onChange={(event) => setBandwidth(event.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t("migration.policyHelp")}</p>
-                </fieldset>
+                <details className="border-t pt-4">
+                  <summary className="cursor-pointer text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {t("migration.policy")} · {t("similarity.advanced")}
+                  </summary>
+                  <fieldset className="mt-3 space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <label className="space-y-1 text-xs">
+                        {t("migration.retentionDays")}
+                        <Input
+                          type="number"
+                          min={0}
+                          max={3650}
+                          value={retentionDays}
+                          disabled={busy}
+                          onChange={(event) => setRetentionDays(Number(event.target.value))}
+                        />
+                      </label>
+                      <label className="space-y-1 text-xs">
+                        {t("migration.concurrency")}
+                        <Input
+                          type="number"
+                          min={1}
+                          max={4}
+                          value={concurrency}
+                          disabled={busy}
+                          onChange={(event) => setConcurrency(Number(event.target.value))}
+                        />
+                      </label>
+                      <label className="space-y-1 text-xs">
+                        {t("migration.bandwidth")}
+                        <Input
+                          type="number"
+                          min={1024}
+                          value={bandwidth}
+                          disabled={busy}
+                          onChange={(event) => setBandwidth(event.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t("migration.policyHelp")}</p>
+                  </fieldset>
+                </details>
                 {backupPicker}
                 <p className="text-xs text-muted-foreground">{t("migration.preflightHelp")}</p>
                 <Button

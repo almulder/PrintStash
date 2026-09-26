@@ -20,6 +20,7 @@ from pydantic import Field as PydanticField
 from sqlmodel import Session, delete, select
 
 import app.modules.library.model_views.access as models_access
+from app.core.config import settings
 from app.core.time import utcnow
 from app.db.models import (
     ArtifactProvenanceLink,
@@ -53,7 +54,7 @@ from app.db.models import (
 from app.db.scopes import live
 from app.db.session import get_session_factory
 from app.modules.identity import rbac
-from app.modules.ingestion import family_transfer, ingestion
+from app.modules.ingestion import ingestion
 from app.modules.library import (
     part_options,
     provenance,
@@ -65,7 +66,6 @@ from app.modules.storage.artifact_content import ArtifactContentError, resolve
 from app.modules.storage.capacity import CapacityManager
 from app.modules.storage.storage_backend.runtime import get_backend
 from app.runtime.jobs import registry
-from app.schemas.family_transfer import PortableFamily
 from app.schemas.models import PartGroupWrite, PartOptionWrite
 
 FORMAT = "printstash-library-v2"
@@ -246,6 +246,43 @@ class PortableMultipartModel(BaseModel):
         return self
 
 
+def _retired_group_filter(row: dict) -> bool:
+    filters = row.get("filters", {})
+    return "family_export_id" in row or any(
+        key in filters for key in ("family_id", "family_role", "in_family")
+    ) or filters.get("browse") == "families_collapsed"
+
+
+def _export_saved_views(rows: list[SavedView]) -> list[dict]:
+    result = []
+    for row in rows:
+        filters = json.loads(row.filters_json)
+        item = {"name": row.name, "filters": filters}
+        if not _retired_group_filter(item):
+            result.append(item)
+    return result
+
+
+def _import_saved_views(session: Session, user: User, rows: list[dict]) -> None:
+    for row in rows:
+        if _retired_group_filter(row):
+            continue
+        if session.exec(
+            select(SavedView.id).where(
+                SavedView.user_id == user.id, SavedView.name == row["name"]
+            )
+        ).first() is not None:
+            continue
+        session.add(
+            SavedView(
+                user_id=int(user.id),
+                name=row["name"],
+                filters_json=json.dumps(row.get("filters", {})),
+            )
+        )
+    session.commit()
+
+
 class PortableManifest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -257,23 +294,9 @@ class PortableManifest(BaseModel):
     # Optional keeps archives produced before standalone multipart models fully
     # readable.
     multipart_models: list[PortableMultipartModel] = PydanticField(default_factory=list)
-    families: list[PortableFamily] = PydanticField(
-        default_factory=list, max_length=100_000
-    )
 
     @model_validator(mode="after")
     def unique_source_ids(self) -> "PortableManifest":
-        for saved in self.saved_views:
-            identity = saved.get("family_export_id")
-            if identity is not None and (
-                not isinstance(identity, str) or str(uuid.UUID(identity)) != identity
-            ):
-                raise ValueError("invalid saved Family identity")
-        if self.format == LEGACY_FORMAT and "families" in self.model_fields_set:
-            raise ValueError("legacy manifest cannot contain Families")
-        family_ids = [family.export_id for family in self.families]
-        if len(family_ids) != len(set(family_ids)):
-            raise ValueError("duplicate Family export identity")
         model_ids = [model.source_id for model in self.models]
         if len(model_ids) != len(set(model_ids)):
             raise ValueError("duplicate model source_id")
@@ -465,9 +488,7 @@ def create_archive(session: Session, user: User, *, version: Literal[1, 2] = 2) 
         "exported_at": utcnow().isoformat(),
         "models": [],
         "print_jobs": [],
-        "saved_views": family_transfer.export_saved_views(
-            session, user, list(saved), version=version
-        ),
+        "saved_views": _export_saved_views(list(saved)),
         "multipart_models": [],
     }
     files_by_model: dict[int, list[File]] = {}
@@ -660,14 +681,6 @@ def create_archive(session: Session, user: User, *, version: Literal[1, 2] = 2) 
             }
         )
 
-    family_covers: list[family_transfer.ExportCover] = []
-    if version == 2:
-        portable_families, family_covers = family_transfer.export_families(
-            session, user, list(models)
-        )
-        manifest["families"] = [
-            family.model_dump(mode="json") for family in portable_families
-        ]
     manifest_bytes = json.dumps(manifest, indent=2).encode("utf-8")
     provenance_models: list[dict[str, object]] = []
     cover_entries: list[tuple[ModelSourceCover, str]] = []
@@ -804,10 +817,9 @@ def create_archive(session: Session, user: User, *, version: Literal[1, 2] = 2) 
         + len(provenance_bytes)
         + sum(row.size_bytes for row, _ in file_entries)
         + sum(row.size_bytes for row, _ in cover_entries)
-        + sum(cover.size_bytes for cover in family_covers)
     )
     if (
-        len(file_entries) + len(cover_entries) + len(family_covers) + 2 > MAX_ENTRIES
+        len(file_entries) + len(cover_entries) + 2 > MAX_ENTRIES
         or expected_size > MAX_UNCOMPRESSED
     ):
         raise ValueError("archive_too_large")
@@ -869,14 +881,6 @@ def create_archive(session: Session, user: User, *, version: Literal[1, 2] = 2) 
                         ):
                             raise ValueError("archive_blob_hash_mismatch")
                         archive.writestr(entry, data)
-                        actual_size += len(data)
-                        if actual_size > MAX_UNCOMPRESSED:
-                            raise ValueError("archive_too_large")
-                    for cover in family_covers:
-                        data = family_transfer.read_cover(cover.key, cover.size_bytes)
-                        if hashlib.sha256(data).hexdigest() != cover.sha256:
-                            raise ValueError("archive_blob_hash_mismatch")
-                        archive.writestr(cover.entry, data)
                         actual_size += len(data)
                         if actual_size > MAX_UNCOMPRESSED:
                             raise ValueError("archive_too_large")
@@ -1772,6 +1776,9 @@ def import_archive(session: Session, archive_path: Path, user: User) -> dict[str
             # archive when nested part_groups are present.  Treat both forms as
             # legacy so those compositions are materialized instead of hidden.
             has_standalone_multipart_models = bool(raw_manifest.get("multipart_models"))
+            # Older archives may include retired grouping metadata. Models and
+            # printable multipart compositions remain importable.
+            raw_manifest.pop("families", None)
             manifest = PortableManifest.model_validate(raw_manifest).model_dump(
                 mode="json"
             )
@@ -1787,11 +1794,6 @@ def import_archive(session: Session, archive_path: Path, user: User) -> dict[str
             raise ValueError("unsupported_archive_format")
         sidecar = _read_provenance_sidecar(archive, manifest)
         _validate_provenance_cover_members(archive, sidecar)
-        portable_families = [
-            PortableFamily.model_validate(row) for row in manifest["families"]
-        ]
-        family_transfer.validate_covers(archive, portable_families)
-
         # Validate every blob before first database/storage write.
         for model_data in manifest["models"]:
             for artifact in model_data.get("artifacts", []):
@@ -1814,7 +1816,11 @@ def import_archive(session: Session, archive_path: Path, user: User) -> dict[str
                     sum(item.file_size for item in infos)
                 ),
             ),
-            tempfile.TemporaryDirectory(prefix="printstash-import-") as tempdir,
+            # Extract under staging, not the system temp dir: on the library's
+            # mount, persist_artifact publishes each entry by hard link.
+            tempfile.TemporaryDirectory(
+                prefix="printstash-import-", dir=settings.staging_dir
+            ) as tempdir,
         ):
             for model_data in manifest["models"]:
                 model = session.exec(
@@ -2309,18 +2315,7 @@ def import_archive(session: Session, archive_path: Path, user: User) -> dict[str
         # override actually lost to an existing local override.
         if provenance_conflicts:
             result["provenance_conflicts"] = provenance_conflicts
-        family_models = {model.hash: model for model in source_models.values()}
-        for portable_family in portable_families:
-            counts = family_transfer.import_family(
-                session, user, portable_family, family_models, archive
-            )
-            for key, value in counts.items():
-                result[key] = result.get(key, 0) + value
-        saved_view_conflicts = family_transfer.import_saved_views(
-            session, user, manifest.get("saved_views", [])
-        )
-        if saved_view_conflicts:
-            result["family_saved_view_conflicts"] = saved_view_conflicts
+        _import_saved_views(session, user, manifest.get("saved_views", []))
         return result
 
 
