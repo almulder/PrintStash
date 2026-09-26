@@ -268,6 +268,15 @@ async def lifespan(app: FastAPI):
                     reset_count,
                 )
         configured = is_configured(session)
+    if not restore_maintenance and not configured:
+        # Its own session: first ownership opens a write-locking transaction,
+        # which must not start inside the repairs above.
+        from app.modules.administration.setup_bootstrap import (
+            provision_from_environment,
+        )
+
+        with get_session_factory().scoped_session() as session:
+            configured = provision_from_environment(session) is not None
     if restore_maintenance:
         logger.critical(
             "interrupted restore detected; application remains in restore maintenance"
@@ -346,7 +355,14 @@ async def lifespan(app: FastAPI):
     if stranded_dispatches:
         logger.warning("reconciled %d stranded fleet dispatch(es)", stranded_dispatches)
     if not configured:
-        logger.info("vault is unconfigured; browser setup mode=%s", settings.setup_mode)
+        from app.modules.administration import setup_policy
+
+        # The resolved policy, not VAULT_SETUP_MODE: a misconfigured mode keeps
+        # every door shut whatever it says.
+        logger.info(
+            "vault is unconfigured; first-run setup=%s",
+            setup_policy.label(setup_policy.current()),
+        )
     logger.info(
         "backend=%s data_dir=%s thumb_dir=%s db=%s",
         settings.storage_backend,

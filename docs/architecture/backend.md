@@ -21,7 +21,7 @@ HTTP endpoint or persisted archive format.
 | `media` | Mesh processing, thumbnails, source covers and toolpaths | `mesh_operations`, `thumbnail_engine`, `thumbnail_generations`, `thumbnail_repair`, `toolpath`, `source_cover_processing` |
 | `identity` | Product identity, collection/printer authorization, sharing and tickets | `auth`, `oidc`, `rbac`, `printer_rbac`, `share`, `ws_tickets` |
 | `notifications` | Notification preparation and delivery | `notifications`, `notification_renderers` |
-| `administration` | Dynamic OSS settings, setup, audit and operational inspection | `runtime_config`, `setup_bootstrap`, `audit`, `vault_audit`, `release_check` |
+| `administration` | Dynamic OSS settings, setup, audit and operational inspection | `runtime_config`, `setup_policy`, `setup_bootstrap`, `setup_storage`, `audit`, `vault_audit`, `release_check` |
 | `runtime` | Local process coordination, maintenance, job tracking and delivery transports | `maintenance`, `jobs`, `work_wakeup`, `realtime` |
 | `db` | Session factories, SQL schema and metadata registration | `session`, `scopes`, `models`, `publication`, `transactions` |
 | `search` | Authorized passage projection, lexical retrieval, immutable embedding spaces and vector generations (AI Search in progress) | `sources`, `passages`, `projection`, `retrieval`, `vector_store` |
@@ -73,8 +73,11 @@ dependencies, FastAPI/HTTP transport imports in capability operations, and impor
 from the removed `app.services` tree. `core.errors.OperationError` carries business
 failure kinds and optional retry delays; `api.errors` alone maps these to HTTP
 statuses and headers. Browser cookies and setup tickets belong to
-`api.session_cookie` and `api.setup_session`; installation locking remains in
-`administration.setup_bootstrap`.
+`api.session_cookie` and `api.setup_session`. `administration.setup_policy`
+resolves `VAULT_SETUP_MODE` and `VAULT_SETUP_ADMIN_*` into the one first-run
+policy that every door checks; first ownership (browser claim and provisioning at
+startup) and installation locking live in `administration.setup_bootstrap`, and
+first-run storage preparation in `administration.setup_storage`.
 Type-only imports do not create runtime cycles.
 
 The cycle check operates on Python implementation modules, including deferred
