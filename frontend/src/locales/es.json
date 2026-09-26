@@ -2706,6 +2706,7 @@
   "This remote backup changed or couldn't be verified, so it was not deleted.": "Esta copia remota ha cambiado o no se pudo verificar, por lo que no se ha eliminado.",
   "An item with that name already exists.": "Ya existe un elemento con ese nombre.",
   "Couldn't reach the server. Check that PrintStash is running and try again.": "No se pudo conectar con el servidor. Comprueba que PrintStash esté funcionando e inténtalo de nuevo.",
+  "Something went wrong in this browser tab. Reload the page and try again.": "Algo salió mal en esta pestaña del navegador. Recarga la página e inténtalo de nuevo.",
   "Something went wrong reaching the server. Check that PrintStash is running and try again.": "Se ha producido un error al conectar con el servidor. Comprueba que PrintStash esté funcionando e inténtalo de nuevo.",
   "items.deleteSelected": {
     "one": "¿Eliminar {value1} elemento seleccionado?",
