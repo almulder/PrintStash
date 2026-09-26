@@ -144,6 +144,9 @@ image. See UPGRADE.md before pulling.**
 - Browser Back now returns through the Vault's collection navigation before leaving for an earlier page.
 - Model cards show the collection name in their badge instead of its full hierarchy path.
 - Long collection paths no longer push the Create Family model picker beyond the dialog edge.
+- A fault inside the browser tab is no longer reported as "Couldn't reach the
+  server". Only real `fetch` rejections map to that message; any other `TypeError`
+  now says to reload the page, and keeps its original text for diagnostics.
 - Uploads work again when PrintStash is opened over plain HTTP on a LAN address
   (for example `http://192.168.1.10:3000`). Browsers hide `crypto.subtle` outside
   secure contexts, so the new resumable upload failed while hashing the file and
