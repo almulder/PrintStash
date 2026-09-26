@@ -147,9 +147,6 @@ image. See UPGRADE.md before pulling.**
 - A fault inside the browser tab is no longer reported as "Couldn't reach the
   server". Only real `fetch` rejections map to that message; any other `TypeError`
   now says to reload the page, and keeps its original text for diagnostics.
-- Removing a library source no longer fails with a server error when one of its
-  files was already in the trash. The failed attempt had also moved the source's
-  models to the trash while leaving the source itself in place.
 
 - The Unraid Community Applications catalog has one current PrintStash listing;
   the old API and frontend templates are marked deprecated for existing users.
@@ -238,6 +235,10 @@ image. See UPGRADE.md before pulling.**
 - Mounted Library source enrollment now rolls back known marker failures instead
   of leaving a conflicted source behind, reports read-only marker failures
   explicitly, and documents the one-time writable mount required for enrollment.
+
+- Removing a library source no longer fails with a server error when one of its
+  files was already in the trash. The failed attempt had also moved the source's
+  models to the trash while leaving the source itself in place.
 
 - PrusaLink now discovers the printer's advertised storage root, using `/usb`
   on Buddy/Core One firmware while retaining `/local` compatibility, so file
