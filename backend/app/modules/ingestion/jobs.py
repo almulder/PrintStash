@@ -16,7 +16,13 @@ from typing import Any
 
 from sqlmodel import Session
 
-from app.db.models import FileType, IngestRequest, IngestRequestKind, LaneName
+from app.db.models import (
+    FileRevisionStatus,
+    FileType,
+    IngestRequest,
+    IngestRequestKind,
+    LaneName,
+)
 from app.db.session import get_session_factory
 from app.modules.work.async_steps import run_async
 from app.modules.work.contracts import JobContext, JobDefinition, Step
@@ -53,6 +59,7 @@ def _typed(cls: Any, values: list[dict[str, Any]]) -> list[Any]:
 def _upload(ctx: JobContext) -> None:
     request = _request(ctx)
     staged = _staged_path(ctx.job_id)
+    selection = requests.selection(request)
     ingest_staged_file(
         job_id=ctx.job_id,
         artifact=StagedArtifact(
@@ -65,8 +72,19 @@ def _upload(ctx: JobContext) -> None:
             source_hash=request.source_hash,
             source_url=request.source_url,
             target_library_id=request.target_library_id,
+            native_context=selection.get("native_context"),
+            revision_label=selection.get("revision_label"),
+            revision_status=(
+                FileRevisionStatus(selection["revision_status"])
+                if selection.get("revision_status")
+                else None
+            ),
+            revision_notes=selection.get("revision_notes"),
+            is_recommended=bool(selection.get("is_recommended")),
+            auto_recommend_first_gcode=False,
         ),
         actor_user_id=request.owner_user_id,
+        ingestion_key=selection.get("ingestion_key"),
     )
 
 

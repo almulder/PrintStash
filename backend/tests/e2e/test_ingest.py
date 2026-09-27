@@ -22,6 +22,7 @@ from sqlmodel import select
 
 from app.core.config import _overlay, settings
 from app.db.models import ArtifactDerivative
+from app.schemas.orca import OrcaNativeContext
 from tests.e2e._jobs import settle
 from tests.fixtures.three_mf_projects import build_3d_builder_component_project
 from tests.paths import FIXTURES_DIR
@@ -137,6 +138,72 @@ def _microfaceted_stl(columns: int = 420, rows: int = 420) -> bytes:
                 )
             )
     return output.getvalue()
+
+
+class TestOrcaLineage:
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_a_slice_becomes_a_revision_of_its_native_source(
+        self, api, tmp_path
+    ) -> None:
+        headers = await _setup_and_login(api, tmp_path)
+        source = await api.post(
+            "/api/v1/ingest/model",
+            files={
+                "file": (
+                    "3dbenchy.stl",
+                    _microfaceted_stl(columns=2, rows=2),
+                    "application/sla",
+                )
+            },
+            data={"model_name": "3DBenchy"},
+            headers=headers,
+        )
+        assert source.status_code == 202, source.text
+        source_job = await _await_job(api, headers, source.json()["job_id"])
+        context = {
+            "version": 1,
+            "classification": "single_object",
+            "source": {
+                "filename": "3dbenchy.stl",
+                "object_count": 1,
+                "instance_count": 1,
+                "object_labels": [
+                    {
+                        "name": "3dbenchy.stl",
+                        "object_id": "0",
+                        "copy_index": 0,
+                    }
+                ],
+            },
+            "slicer": {"name": "OrcaSlicer", "version": "2.3.2"},
+            "printer": {},
+            "filaments": [],
+            "process": {},
+            "print_stats": {},
+            "field_sources": {"source.filename": "gcode_object_label"},
+        }
+
+        sliced = await api.post(
+            "/api/v1/ingest/orca",
+            files={"file": (FIXTURE.name, FIXTURE.read_bytes(), "text/plain")},
+            data={"native_context": json.dumps(context)},
+            headers=headers,
+        )
+        assert sliced.status_code == 202, sliced.text
+        slice_job = await _await_job(api, headers, sliced.json()["job_id"])
+        detail = await api.get(
+            f"/api/v1/models/{source_job['model_id']}", headers=headers
+        )
+        revision = next(
+            row for row in detail.json()["files"] if row["id"] == slice_job["file_id"]
+        )
+
+        assert slice_job["model_id"] == source_job["model_id"]
+        assert revision["revision_status"] == "needs_test"
+        assert revision["metadata"][
+            "native_context"
+        ] == OrcaNativeContext.model_validate(context).model_dump(mode="json")
 
 
 def _largest_component_fraction(mask: np.ndarray) -> float:

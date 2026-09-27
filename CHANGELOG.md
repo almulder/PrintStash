@@ -97,6 +97,14 @@ image. See UPGRADE.md before pulling.**
 
 ### Added
 
+- OrcaSlicer uploads now carry one versioned native metadata context. Exact
+  single-object source matches become idempotent `needs_test` G-code Revisions;
+  named-but-unknown or ambiguous sources fail without orphan rows,
+  multi-object plates never attach to their first object, and `.gcode.3mf`
+  context is supported.
+  The standard-library hook also has a non-secret diagnostic mode and keeps
+  exiting successfully when PrintStash is unavailable.
+
 - Settings → **Background work** shows every lane with a runtime concurrency
   override, each kind of Job with its queue and schedule, the processes running
   work, and recent failures to retry; administrators can derive missing or

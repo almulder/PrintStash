@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from typing import Optional
 
+from pydantic import ValidationError
 from sqlalchemy import case, func
 from sqlmodel import Session, select
 
@@ -38,6 +40,7 @@ from app.schemas.models import (
     ModelPrinterPresenceRead,
     PrintSummaryRead,
 )
+from app.schemas.orca import OrcaNativeContext
 
 from .extensions import similarity_summaries
 from .thumbnails import thumb_url
@@ -58,6 +61,16 @@ def metadata_read(
     profiles: list[FilamentProfile] | None = None,
 ) -> MetadataRead:
     data = metadata.model_dump()
+    raw_context = data.pop("native_context_json", None)
+    if raw_context:
+        try:
+            parsed_context = json.loads(raw_context)
+        except (TypeError, ValueError):
+            parsed_context = None
+        try:
+            data["native_context"] = OrcaNativeContext.model_validate(parsed_context)
+        except ValidationError:
+            data["native_context"] = None
     if profiles is None:
         profiles = cost_profiles(session)
     profile = match_cost_profile(profiles, metadata)

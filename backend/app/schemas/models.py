@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.core.time import ensure_utc
 from app.db.models import CollectionRole, FileRevisionStatus, FileType, PrintJobState
+from app.schemas.orca import OrcaNativeContext
 from app.schemas.printers import (
     PrintJobIdentityRead,
     PrintJobReportedMetadataRead,
@@ -37,6 +38,7 @@ class MetadataRead(BaseModel):
     filament_cost: Optional[float] = None
     material_type: Optional[str] = None
     material_brand: Optional[str] = None
+    native_context: Optional[OrcaNativeContext] = None
 
     bbox_x_mm: Optional[float] = None
     bbox_y_mm: Optional[float] = None
