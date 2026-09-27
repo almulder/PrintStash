@@ -138,9 +138,58 @@ class TestMultiArchWorkflows:
         expected = "./.github/workflows/container-publish.yml"
         release = _workflow("ghcr.yml")
         manual = _workflow("docker-publish.yml")
+        canary = _workflow("canary.yml")
 
         assert release["jobs"]["publish"]["uses"] == expected
         assert manual["jobs"]["publish"]["uses"] == expected
+        assert canary["jobs"]["publish"]["uses"] == expected
+
+
+class TestCanaryWorkflow:
+    def test_dispatch_requires_main(self) -> None:
+        workflow = _workflow("canary.yml")
+        guard = workflow["jobs"]["guard"]
+        check = guard["steps"][0]
+
+        assert set(workflow[True]) == {"workflow_dispatch"}
+        assert check["env"]["REF"] == "${{ github.ref }}"
+        assert '"$REF" != "refs/heads/main"' in check["run"]
+        assert "exit 1" in check["run"]
+
+    def test_publish_waits_for_ci(self) -> None:
+        jobs = _workflow("canary.yml")["jobs"]
+
+        assert jobs["ci"]["needs"] == "guard"
+        assert jobs["ci"]["uses"] == "./.github/workflows/ci.yml"
+        assert jobs["publish"]["needs"] == ["guard", "ci"]
+        assert jobs["publish"]["with"] == {"canary": True}
+
+    def test_new_dispatch_cancels_an_older_canary_run(self) -> None:
+        concurrency = _workflow("canary.yml")["concurrency"]
+
+        assert concurrency == {
+            "group": "ghcr-canary-main",
+            "cancel-in-progress": True,
+        }
+
+    def test_canary_tags_do_not_promote_latest(self) -> None:
+        workflow = _workflow("container-publish.yml")
+        assert workflow[True]["workflow_call"]["inputs"]["canary"]["default"] is False
+
+        for job_name in ("build", "merge"):
+            step = next(
+                step
+                for step in workflow["jobs"][job_name]["steps"]
+                if step.get("id") == "meta"
+            )
+            tags = step["with"]["tags"].splitlines()
+
+            assert (
+                "type=raw,value=latest,enable=${{ !inputs.canary && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
+                in tags
+            )
+            assert "type=raw,value=canary,enable=${{ inputs.canary }}" in tags
+            assert "type=sha,prefix=canary-,enable=${{ inputs.canary }}" in tags
 
 
 class TestUnifiedImageWorkflow:

@@ -50,6 +50,9 @@ The existing **GHCR Release Images** workflow publishes native AMD64 and ARM64
 images on release tags after CI passes. Run **Manual Docker Images** on the
 default branch to publish `latest`. Both use the repository owner's GHCR namespace
 and the built-in `GITHUB_TOKEN`; a separate registry password is unnecessary.
+Run **GHCR Canary Images** on `main` to test the selected main commit and publish
+`canary` plus a `canary-<commit>` tag for each image without changing `latest`.
+For the single-container deployment, set `PRINTSTASH_VERSION=canary` in `.env`.
 Pull-request CI validates the application without building container images.
 The release workflow builds both architectures and runs the unified-image smoke
 test before promoting their digests to shared tags.
