@@ -320,7 +320,9 @@ jobs:
           status=0
           for seed in 1 7 42 99 1234; do
             echo "::group::seed ${seed}"
+            # The backend coverage lane runs the report-dependent floor tests.
             uv run pytest tests -q -p randomly --randomly-seed="${seed}" -n 4 \
+              -m "not coverage_gate" \
               --deselect tests/integration/postgres \
               > "run-${seed}.log" 2>&1 || status=1
             tail -1 "run-${seed}.log"

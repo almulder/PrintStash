@@ -62,6 +62,24 @@ class TestBackendCompatibilityJob:
         assert 60 <= job["timeout-minutes"] <= 90
 
 
+class TestFlakyDetectionJob:
+    def test_randomized_runs_exclude_the_coverage_gate(self) -> None:
+        steps = _ci_workflow()["jobs"]["flaky-detection"]["steps"]
+        run = next(
+            step["run"]
+            for step in steps
+            if step.get("name") == "Run the suite five times with different orderings"
+        )
+
+        assert '-m "not coverage_gate"' in run
+
+    def test_backend_still_runs_the_coverage_gate(self) -> None:
+        steps = _ci_workflow()["jobs"]["backend"]["steps"]
+        commands = [step.get("run") for step in steps]
+
+        assert "./scripts/test.sh coverage -v" in commands
+
+
 class TestMultiArchWorkflows:
     """Release images build on native runners before multi-platform promotion."""
 
