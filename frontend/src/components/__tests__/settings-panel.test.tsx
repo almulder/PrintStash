@@ -1558,6 +1558,46 @@ describe("SettingsPanel", () => {
       expect(await screen.findByText("GC plan #12 · preview")).toBeVisible();
     });
 
+    it("recovers a preview claimed after the trash section loaded", async () => {
+      const user = userEvent.setup();
+      let activePlanVisible = false;
+      const { requestsWithMethod } = renderSettings({
+        at: "/settings?section=trash",
+        routes: {
+          "GET /api/v1/admin/gc": () => json(activePlanVisible ? GC_PLAN : null),
+          "POST /api/v1/admin/gc": () => {
+            activePlanVisible = true;
+            return json({ detail: "gc_plan_active" }, 409);
+          },
+        },
+      });
+
+      await user.click(await screen.findByRole("button", { name: /Review expired/ }));
+      await user.click(screen.getByRole("button", { name: "Create preview" }));
+
+      expect(await screen.findByText("GC plan #12 · preview")).toBeVisible();
+      expect(screen.getByRole("button", { name: /Review expired/ })).toBeDisabled();
+      expect(requestsWithMethod("DELETE")).toHaveLength(0);
+    });
+
+    it("reports a preview conflict when no active plan can be read", async () => {
+      const user = userEvent.setup();
+      renderSettings({
+        at: "/settings?section=trash",
+        routes: { "POST /api/v1/admin/gc": json({ detail: "gc_plan_active" }, 409) },
+      });
+
+      await user.click(await screen.findByRole("button", { name: /Review expired/ }));
+      await user.click(screen.getByRole("button", { name: "Create preview" }));
+
+      expect(
+        await screen.findByText(
+          "Something went wrong reaching the server. Check that PrintStash is running and try again.",
+        ),
+      ).toBeVisible();
+      expect(screen.queryByText("GC plan #12 · preview")).not.toBeInTheDocument();
+    });
+
     it("aborts an active preview without issuing a destructive transition", async () => {
       const user = userEvent.setup();
       const { requestsWithMethod } = renderSettings({

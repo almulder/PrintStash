@@ -6,6 +6,7 @@ import { knownUiText } from "@/lib/locale";
 import { formatNumber } from "@/lib/format";
 import { currentLocale } from "@/lib/locale";
 import { uiText } from "@/lib/locale";
+import { ApiError } from "@/lib/errors";
 import { useUiLocale } from "@/lib/i18n";
 import { collectionDisplayPath } from "@/lib/collection-display";
 
@@ -1460,7 +1461,18 @@ export function SettingsPanel() {
         }),
       );
     } catch (e) {
-      toast.error(e);
+      if (e instanceof ApiError && e.status === 409 && e.code === "gc_plan_active") {
+        try {
+          const activePlan = await getActiveGcPlan();
+          if (activePlan === null) throw e;
+          setGcPlan(activePlan);
+          setGcDigestConfirmation("");
+        } catch (readError) {
+          toast.error(readError);
+        }
+      } else {
+        toast.error(e);
+      }
     } finally {
       setTrashBusy(null);
     }

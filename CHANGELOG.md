@@ -182,6 +182,10 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- Trash GC preview now loads the active plan when another request claims it
+  first, so operators can review and abort the existing plan instead of seeing
+  an error.
+
 - Unify local create-only publication on filesystems without hard links (#249):
   uploads, URL imports, native completion, cache fills and root markers use the
   same safe copy fallback. Probe staging for every Vault provider and report
