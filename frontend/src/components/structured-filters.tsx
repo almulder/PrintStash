@@ -23,6 +23,17 @@ type FacetFilterKey =
 
 type FilterKey = FacetFilterKey | "has_similar_candidates";
 
+/**
+ * Facet counts cover the current view, so a folder without G-code returns no
+ * `gcode` value even while that filter is on. A picked value must keep its row, at
+ * zero, or the user can no longer see or untick the filter hiding everything.
+ */
+function withSelectedValues(values: FacetValueRead[], selected: string[]): FacetValueRead[] {
+  const present = new Set(values.map((item) => item.value));
+  const missing = selected.filter((value) => !present.has(value));
+  return [...values, ...missing.map((value) => ({ value, count: 0 }))];
+}
+
 const GROUPS: Array<{ key: FacetFilterKey; label: string }> = [
   {
     key: "file_type",
@@ -170,8 +181,8 @@ export function StructuredFilters({
             {uiText("similarity.hasCandidates")}
           </label>
           {GROUPS.map(({ key, label }) => {
-            const values: FacetValueRead[] = facets?.[key] ?? [];
             const selected = active[key] ?? [];
+            const values = withSelectedValues(facets?.[key] ?? [], selected);
             const isOpen = open[key] ?? selected.length > 0;
             const contentId = `model-filter-${key}`;
             if (values.length === 0 && selected.length === 0) return null;

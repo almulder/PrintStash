@@ -198,6 +198,10 @@ image. See UPGRADE.md before pulling.**
 
 ### Fixed
 
+- A filter value stays in the panel, at zero, when the current folder has none of
+  it. Picking G-code and then opening a folder without G-code used to remove its
+  checkbox, leaving an empty view with no way to untick the filter except Clear.
+
 - Completing first-run setup now clears task history left in the browser by a
   previous installation, so old Jobs no longer appear as failed in a new vault.
 
