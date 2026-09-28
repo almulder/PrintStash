@@ -97,7 +97,7 @@ describe("TaskList", () => {
     ).toBeVisible();
   });
 
-  it("links an administrator from a completed library import to preview jobs", () => {
+  it("links an administrator from a completed library import to preview activity", () => {
     renderTaskList([task({ status: "completed", jobKind: "ingestion.library_import" })], {
       id: 1,
       username: "admin",
@@ -105,9 +105,10 @@ describe("TaskList", () => {
       is_superuser: true,
     });
 
-    expect(
-      screen.getByRole("link", { name: "View preview jobs in Background work" }),
-    ).toHaveAttribute("href", "/settings?section=work");
+    expect(screen.getByRole("link", { name: "View preview activity" })).toHaveAttribute(
+      "href",
+      "/settings?section=work",
+    );
   });
 
   it("does not offer administrator job details to a member", () => {
@@ -118,7 +119,7 @@ describe("TaskList", () => {
       is_superuser: false,
     });
 
-    expect(screen.queryByRole("link", { name: "View preview jobs in Background work" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "View preview activity" })).toBeNull();
   });
 
   it("updates empty-state copy after a language change", () => {
