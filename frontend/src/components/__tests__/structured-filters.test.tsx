@@ -126,6 +126,28 @@ describe("StructuredFilters", () => {
     });
   });
 
+  describe("a picked value the current view has none of", () => {
+    // Pick G-code, then open a folder without any: the folder's counts carry no
+    // `gcode` value, but the filter is still on and still hiding every model.
+    const NO_GCODE: ModelFacetsRead = { ...FACETS, file_type: [{ value: "stl", count: 12 }] };
+
+    it("keeps its row at zero", () => {
+      renderFilters({ facets: NO_GCODE, active: { file_type: ["gcode"] } });
+
+      const row = screen.getByText("gcode").closest("label");
+      if (row === null) throw new Error("gcode option not rendered");
+      expect(within(row).getByText("0")).toBeInTheDocument();
+    });
+
+    it("can still be unpicked", async () => {
+      const { onChange } = renderFilters({ facets: NO_GCODE, active: { file_type: ["gcode"] } });
+
+      await userEvent.setup().click(screen.getByText("gcode"));
+
+      expect(onChange).toHaveBeenCalledWith("file_type", []);
+    });
+  });
+
   describe("collapsing a group", () => {
     it("hides a group's values when it is collapsed", async () => {
       const user = userEvent.setup();

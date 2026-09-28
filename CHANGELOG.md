@@ -213,11 +213,30 @@ image. See UPGRADE.md before pulling.**
   `; total filament weight [g] : 6.15`, none of which the parser recognised.
   The G-code metadata recipe moves to version 2, so files already in the
   library are re-read in the background.
+- A filter value stays in the panel, at zero, when the current folder has none of
+  it. Picking G-code and then opening a folder without G-code used to remove its
+  checkbox, leaving an empty view with no way to untick the filter except Clear.
+
+- Completing first-run setup now clears task history left in the browser by a
+  previous installation, so old Jobs no longer appear as failed in a new vault.
 
 - **3MF imports no longer exhaust container memory on repeated project parts.** Mesh metadata and previews now use a bounded 3MF resource loader that checks placed instances before composing geometry. Over-budget projects keep their original Artifact and embedded preview without crashing the API; existing mesh derivatives are refreshed at the new recipe version. ([#259](https://github.com/xiao-villamor/PrintStash/issues/259))
 
 - Search action buttons now sit inside the search field border, and model names
   in the field no longer receive browser spellcheck underlines.
+
+- AI Search index builds now finish library reconciliation even when its source
+  and orphan scans finish on different passes. Smaller reconciliation pages
+  release SQLite writer locks sooner. Deferred embedding failures wait for their
+  scheduled retry; failed builds and manually activated builds release their
+  background jobs, while a retry or later content change starts a tracked job.
+  Automatic activation reports permanent errors and rechecks changed content.
+  Active indexes sleep until a deferred embedding retry is due and wake when an
+  administrator retries a failed input. Local embedding contention yields the
+  search lane for interactive inference. Index ETAs now use recent completed
+  vectors, so time spent reconciling or stuck before backfill is excluded.
+  Guided setup names the current phase, shows vector counts only during indexing,
+  offers failed builds a retry, and discloses that local AI uses the CPU.
 
 - Portable ZIP imports now update processed file counts while they run. The completed import task links administrators to Background work, where preview generation has its own queue status.
 - Library source setup now distinguishes a mounted folder that needs temporary
