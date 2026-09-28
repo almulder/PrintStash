@@ -134,15 +134,16 @@ describe("StructuredFilters", () => {
     it("keeps its row at zero", () => {
       renderFilters({ facets: NO_GCODE, active: { file_type: ["gcode"] } });
 
-      const row = screen.getByText("gcode").closest("label");
-      if (row === null) throw new Error("gcode option not rendered");
+      // Matches the raw enum and the display name, whichever the panel renders.
+      const row = screen.getByText(/^g-?code$/i).closest("label");
+      if (row === null) throw new Error("G-code option not rendered");
       expect(within(row).getByText("0")).toBeInTheDocument();
     });
 
     it("can still be unpicked", async () => {
       const { onChange } = renderFilters({ facets: NO_GCODE, active: { file_type: ["gcode"] } });
 
-      await userEvent.setup().click(screen.getByText("gcode"));
+      await userEvent.setup().click(screen.getByText(/^g-?code$/i));
 
       expect(onChange).toHaveBeenCalledWith("file_type", []);
     });
