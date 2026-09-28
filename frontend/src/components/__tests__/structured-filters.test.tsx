@@ -19,7 +19,7 @@
  */
 
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -125,6 +125,29 @@ describe("StructuredFilters", () => {
       await user.click(screen.getByText("stl"));
 
       expect(onChange).toHaveBeenCalledWith("file_type", ["gcode"]);
+    });
+  });
+
+  describe("a picked value the current view has none of", () => {
+    // Pick G-code, then open a folder without any: the folder's counts carry no
+    // `gcode` value, but the filter is still on and still hiding every model.
+    const NO_GCODE: ModelFacetsRead = { ...FACETS, file_type: [{ value: "stl", count: 12 }] };
+
+    it("keeps its row at zero", () => {
+      renderFilters({ facets: NO_GCODE, active: { file_type: ["gcode"] } });
+
+      // Matches the raw enum and the display name, whichever the panel renders.
+      const row = screen.getByText(/^g-?code$/i).closest("label");
+      if (row === null) throw new Error("G-code option not rendered");
+      expect(within(row).getByText("0")).toBeInTheDocument();
+    });
+
+    it("can still be unpicked", async () => {
+      const { onChange } = renderFilters({ facets: NO_GCODE, active: { file_type: ["gcode"] } });
+
+      await userEvent.setup().click(screen.getByText(/^g-?code$/i));
+
+      expect(onChange).toHaveBeenCalledWith("file_type", []);
     });
   });
 
