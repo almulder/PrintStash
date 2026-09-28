@@ -16,6 +16,7 @@ image. See UPGRADE.md before pulling.**
   which selects or clears them together; G-code and DXF stay as their own rows.
   File types are written as the formats name themselves (STL, 3MF, G-code)
   in the filter panel and active-filter chips.
+
 - The library filter panel names its file-format group **File type**, matching the
   active-filter chip ("file type: STL") and the Spanish panel ("Tipo de archivo"),
   instead of "Artifact".
